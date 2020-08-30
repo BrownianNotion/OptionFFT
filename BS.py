@@ -23,6 +23,7 @@ class GBM():
 
 
 #Vanilla European call option class
+#May want to add dividends later
 class EuCall():
     #K - strike price, T - time to maturity, S - a stochastic process object
     #that models the underlying stock
@@ -47,11 +48,28 @@ class EuCall():
         #Price = S0 * delta - Ke^(-rT) *PrITM
         return S.S0 * delta - self.K * np.exp(-S.r * self.T) * PrITM
 
-    #Use an inverse Fourier Transform method to get the Black-Scholes price
-    def BlackScholesPriceFT(self, N):
+    #Fourier Transform method to compute option prices (Scott 1997)
+    def BlackScholesPriceFT(self):
         if not isinstance(self.S, GBM):
             sys.exit("Black Scholes Pricing requires underlying stock to be a GBM.")
+
+        #Integrands for the analytic Fourier Transform method to compute option prices
+        def PrITMIntegrand(u, K, phi):
+            return np.real(-1j * (np.exp(-1j*u*np.log(K)) * phi(u)) / u)
         
+        def deltaIntegrand(u, K, phi):
+            return np.real(-1j * (np.exp(-1j*u*np.log(K)) * phi(u - 1j)) / (u * phi(-1j)))
+        
+        #Estimate the required integrals
+        K = self.K
+        phi = lambda u: self.S.phi(self.T, u)  #Characteristic function of log-asset at maturity
+        intITM = sp.integrate.quad(PrITMIntegrand, 0, np.inf, args = (K, phi))[0]
+        intDelta = sp.integrate.quad(deltaIntegrand, 0, np.inf, args = (K, phi))[0]
+
+        PrITM = 0.5 + intITM / np.pi
+        delta = 0.5 + intDelta / np.pi
+        return self.S.S0 * delta - self.K * np.exp(-self.S.r * self.T) * PrITM
+
 
 
 
@@ -59,12 +77,22 @@ class EuCall():
 S0, r, sigma = 1, 0.05, 0.1
 S = GBM(S0, r, sigma)
 
-t = 1
 u = np.array([-1, 0, 1])
 #print(S.phi(t, u))
 
 K, T = 1, 1
 call1 = EuCall(K, T, S)
 #Same strike different maturities,
-print(call1.BlackScholesPrice())
-#print(call1.BlackScholesPrice())
+print("BS Price " + str(call1.BlackScholesPrice()))
+print("FT Price " + str(call1.BlackScholesPriceFT()))
+
+Ks = np.arange(0.5, 1, 0.1)
+T = np.arange(1, 4)
+
+
+for k in Ks:
+    for t in T:
+        Eucall1 = EuCall(k, t, S)
+        err = abs(Eucall1.BlackScholesPrice() - Eucall1.BlackScholesPriceFT())
+        print("err = " + str(err))
+    print()
