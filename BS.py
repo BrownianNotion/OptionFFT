@@ -49,11 +49,9 @@ class EuCall():
         #Price = S0 * delta - Ke^(-rT) *PrITM
         return S.S0 * delta - self.K * np.exp(-S.r * self.T) * PrITM
 
-    #Fourier Transform method to compute option prices (Scott 1997)
-    def BlackScholesFTPrice(self):
-        if not isinstance(self.S, GBM):
-            sys.exit("Black Scholes Pricing requires underlying stock to be a GBM.")
-
+    #Fourier Transform method to compute option prices based on inversion method by Gil-Palez.
+    #Expression based on rewriting the cdf using Fourier Transforms and characteristic functions
+    def cdfFTPrice(self):
         #Integrands for the analytic Fourier Transform method to compute option prices
         def PrITMIntegrand(u, K, phi):
             return np.real(-1j * (np.exp(-1j*u*np.log(K)) * phi(u)) / u)
@@ -147,4 +145,4 @@ K = np.array([strike for strike in K if strike > L and strike < U])
 call = EuCall(0, T, S)
 for (i, strike) in enumerate(K):
     call.K = strike
-    print("{:.4f} {:.4f} {:.4f}".format(call.BlackScholesPrice(), call.BlackScholesFTPrice(), FFTp[i]))
+    print("{:.4f} {:.4f} {:.4f}".format(call.BlackScholesPrice(), call.cdfFTPrice(), FFTp[i]))
