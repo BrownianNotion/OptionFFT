@@ -3,6 +3,7 @@ import scipy as sp
 from scipy.stats import norm
 from scipy.fft import fft
 import sys
+import matplotlib.pyplot as plt
 
 #Geometric Brownian Motion stochastic process
 class GBM():
@@ -20,8 +21,60 @@ class GBM():
     
     #Characteristic function of ln(GBM) at time t, evaluated at point u
     def phi(self, t, u):
-        return np.exp(-0.5 * self.logSig * t * u**2 + (self.logMu * t * u + np.log(self.S0) * u)*1j)
+        return np.exp(-0.5*self.logSig*t * u**2 + (self.logMu*t*u + np.log(self.S0)*u)*1j)
+    
+    #Generate a sample path of GBM with optional plot. N = number of subintervals used.
+    def samplePath(self, T, N = 1000, terminal = True, plot = False):
+        dt = T/N
+        t = np.linspace(0, T, N + 1)
+        dW = np.random.normal(0, np.sqrt(dt), N)
+        W = np.insert(np.cumsum(dW), 0, 0)  #W_0 = 0 and add increments to generate Brownian Motion
+        if terminal:
+            return self.S0 * np.exp(self.logMu*T + self.sigma*W[-1])
+        else:
+            St = self.S0 * np.exp(self.logMu*t + self.sigma*W)
+            if plot:
+                plt.plot(t, St)
+                plt.show()
+            return St
 
+#Variance-Gamma Process
+class VG():
+    def __init__(self, S0, r, sigma, theta, nu, omega=None):
+        self.S0 = S0
+        self.r = r
+        self.sigma = sigma
+        self.theta = theta
+        self.nu = nu
+        #Default value of omega is such that mean return is r
+        if not omega:
+            omega = (1/nu) * np.log(1 - theta*nu - 0.5*nu*sigma**2)
+        self.omega = omega
+    
+    #Characteristic function of the r.v. at time t evaluated at u.
+    def phi(self, t, u):
+        if t < 0:
+            sys.exit("Time must be positive.")
+        denom = np.power((1 - 1j*self.theta*self.nu*u + 0.5*u**2 * self.sigma**2 * self.nu), T/self.nu)
+        return np.exp(1j*u*(np.log(self.S0) + (r + self.omega)*t)) / denom
+    
+    #Generate a sample path of the VG process, same input parameters as for GBM
+    def samplePath(self, T, N = 1000, terminal = True, plot = False):
+        dt = T/N
+        t = np.linspace(0, T, N + 1)
+        Z = np.random.normal(0, 1, N)
+        a, b = dt/self.nu, self.nu
+        dG = np.random.gamma(a, b, N) #Gamma increments
+        X = self.theta*np.cumsum(dG) + self.sigma*np.cumsum(np.sqrt(dG)*Z)
+        X = np.insert(X, 0, 0) #X_0 = 0
+        if terminal:
+            return self.S0 * np.exp((self.r + self.omega)*T + X[-1])
+        else:
+            St = self.S0 * np.exp((self.r + self.omega)*t + X)
+            if plot:
+                plt.plot(t, X)
+                plt.show()
+            return St
 
 #Vanilla European call option class
 #May want to add dividends/arbitrary time later
@@ -32,6 +85,18 @@ class EuCall():
         self.K = K
         self.T = T
         self.S = process
+
+    #Compute payoff at maturity given a terminal asset price
+    def payoff(self, ST):
+        return max(ST - self.K, 0)
+
+    #Monte Carlo method - simulate n sample paths, compute the payoff, average these and discount.
+    def MonteCarloPrice(self, n=1000):
+        total = 0
+        for i in range(n):
+            ST = self.S.samplePath(T)
+            total += self.payoff(ST)
+        return np.exp(-self.S.r*self.T) * (total / n)
 
     #Use classical Black-Scholes to price option
     #t - time 0 <= t <= T at which option is to be evaluted
@@ -128,6 +193,16 @@ S = GBM(S0, r, sigma)
 #Set Call maturity
 T = 1
 
+#Test sample paths for VG and GBM
+#S.samplePath(T, terminal=False, plot=True)
+
+S0, r = 100, 0.02
+sigma, nu, theta = 0.25, 2, -0.1
+T = 5
+
+#S = VG(S0, r, sigma, theta, nu)
+#V.samplePath(T, terminal=False, plot=True)
+
 #Use only a select portion of strikes between upper and lower bounds
 L = 90
 U = 105
@@ -145,4 +220,6 @@ K = np.array([strike for strike in K if strike > L and strike < U])
 call = EuCall(0, T, S)
 for (i, strike) in enumerate(K):
     call.K = strike
-    print("{:.4f} {:.4f} {:.4f}".format(call.BlackScholesPrice(), call.cdfFTPrice(), FFTp[i]))
+    print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.BlackScholesPrice(), call.cdfFTPrice(), call.MonteCarloPrice(), FFTp[i]))
+    #print("{:.4f} {:.4f} {:.4f}".format(call.MonteCarloPrice(), call.cdfFTPrice(), FFTp[i]))
+    
