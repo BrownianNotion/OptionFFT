@@ -1,9 +1,13 @@
 import numpy as np
-import scipy as sp
+from scipy.integrate import quad
 from scipy.stats import norm
 from scipy.fft import fft
 import sys
 import matplotlib.pyplot as plt
+import time
+
+########################################################################
+# 1. STOCK PROCESSES
 
 #Geometric Brownian Motion stochastic process
 class GBM():
@@ -24,7 +28,7 @@ class GBM():
         return np.exp(-0.5*self.logSig*t * u**2 + (self.logMu*t*u + np.log(self.S0)*u)*1j)
     
     #Generate a sample path of GBM with optional plot. N = number of subintervals used.
-    def samplePath(self, T, N = 1000, terminal = True, plot = False):
+    def samplePath(self, T, N = 200, terminal = True, plot = False):
         dt = T/N
         t = np.linspace(0, T, N + 1)
         dW = np.random.normal(0, np.sqrt(dt), N)
@@ -59,7 +63,7 @@ class VG():
         return np.exp(1j*u*(np.log(self.S0) + (r + self.omega)*t)) / denom
     
     #Generate a sample path of the VG process, same input parameters as for GBM
-    def samplePath(self, T, N = 1000, terminal = True, plot = False):
+    def samplePath(self, T, N = 200, terminal = True, plot = False):
         dt = T/N
         t = np.linspace(0, T, N + 1)
         Z = np.random.normal(0, 1, N)
@@ -76,6 +80,9 @@ class VG():
                 plt.show()
             return St
 
+########################################################################
+# 2. OPTION PRICING FUNCTIONS
+
 #Vanilla European call option class
 #May want to add dividends/arbitrary time later
 class EuCall():
@@ -91,7 +98,7 @@ class EuCall():
         return max(ST - self.K, 0)
 
     #Monte Carlo method - simulate n sample paths, compute the payoff, average these and discount.
-    def MonteCarloPrice(self, n=1000):
+    def MonteCarloPrice(self, n = 500):
         total = 0
         for i in range(n):
             ST = self.S.samplePath(T)
@@ -127,8 +134,8 @@ class EuCall():
         #Estimate the required integrals
         K = self.K
         phi = lambda u: self.S.phi(self.T, u)  #Characteristic function of log-asset at maturity
-        intITM = sp.integrate.quad(PrITMIntegrand, 0, np.inf, args = (K, phi))[0]
-        intDelta = sp.integrate.quad(deltaIntegrand, 0, np.inf, args = (K, phi))[0]
+        intITM = quad(PrITMIntegrand, 0, np.inf, args = (K, phi))[0]
+        intDelta = quad(deltaIntegrand, 0, np.inf, args = (K, phi))[0]
         PrITM = 0.5 + intITM/np.pi
         delta = 0.5 + intDelta/np.pi
         return self.S.S0 * delta - self.K * np.exp(-self.S.r * self.T) * PrITM
@@ -139,20 +146,19 @@ class EuCall():
         return np.exp(-self.S.r * self.T) * self.S.phi(self.T, v - (alpha + 1)*1j) / denom
 
     #Carr and Madan's analytic expression without using DFT to estimate integral
+    #Useful for testing the accuracy of the FFT approximation
     def CMFTPrice(self, alpha = 1.5):
         k = np.log(self.K)
         def CMintegrand(v, alpha, k):
-            return np.exp(-1j*v*k) * self.MCallFT(v, alpha)
-        lambda v: np.real(CMintegrand(v, alpha, k))  #Discard imaginary part as it is insignificant
-        CMIntegral = np.real(sp.integrate.quad(CMintegrand, 0, np.inf, args = (alpha, k))[0])
+            return np.real(np.exp(-1j*v*k) * self.MCallFT(v, alpha))
+        CMIntegral = quad(CMintegrand, 0, np.inf, args = (alpha, k))[0]
         return np.exp(-alpha*k) * CMIntegral/ np.pi
 
 
-#Fourier Transform of modified call e^(alpha * k) * C_T(k) (version for outside call class)
+#Fourier Transform of modified call e^(alpha * k) * C_T(k) (version outside call class for FFT)
 def MCallFTo(S, T, v, alpha):
     denom = alpha**2 + alpha - v**2 + (2*alpha + 1) * v *1j
     return np.exp(-S.r * T) * S.phi(T, v - (alpha + 1)*1j) / denom
-
 
 #Return a list of b (left-endpoint), lamba (log-strike spacing) and log-strike prices array k
 def logStrikePartition(eta = 0.25, N = 4096):
@@ -186,40 +192,114 @@ def FFTPrice(S, T, L = 0, U = np.inf, alpha = 1.5, eta = 0.25, N = 4096):
     kIndices = np.logical_and(np.exp(k)>L, np.exp(k)<U)
     return callPrices[kIndices]
 
+########################################################################
+# 3. COMPARING OPTION PRICES
+
 #Initialise a GBM Process
 S0, r, sigma = 100, 0.05, 0.1
 S = GBM(S0, r, sigma)
 
-#Set Call maturity
+#Set Call maturity.
 T = 1
 
-#Test sample paths for VG and GBM
-#S.samplePath(T, terminal=False, plot=True)
-
-S0, r = 100, 0.02
-sigma, nu, theta = 0.25, 2, -0.1
-T = 5
-
-#S = VG(S0, r, sigma, theta, nu)
-#V.samplePath(T, terminal=False, plot=True)
-
 #Use only a select portion of strikes between upper and lower bounds
-L = 90
-U = 105
+L = 70
+U = 130
 #FFT Price Parameters
 alpha = 1.5
 eta = 2**(-2)  #default = 2**(-2) = 0.25
 N = 2**12   #default = 2**12 = 4096
-FFTp = FFTPrice(S, T, L, U, alpha, eta, N)
-k = logStrikePartition(eta, N)[2]
+
 #Get strikes between L and U
+k = logStrikePartition(eta, N)[2]
 K = np.exp(k)
 K = np.array([strike for strike in K if strike > L and strike < U])
 
+############################################################
+# 3.a) TIMING PRICES USING GBM UNDERLYING
+GBMmethods = ["BlackScholesPrice", "cdfFTPrice", "MonteCarloPrice"]
+GBMTimes = {method: 0 for method in GBMmethods}  #Dictionary to store average time for each method
+GBMTimes["FFTPrice"] = 0
+
+#Instance of call, strike will be constantly modified instead of creating new class
+call = EuCall(0, T, S) 
+runs = 10     #Number of runs to average the time over
+
+#To be improved: use a more reliable method that tracks CPU time instead of time.time()
+#Time non-FFT methods
+for method in GBMmethods:
+    start = time.time()
+    for i in range(runs):
+        for strike in K:
+            call.K = strike
+            getattr(EuCall, method)(call)
+    end = time.time()
+    GBMTimes[method] = (end - start)/runs
+
+#Time FFT method (needs to be separate as it is not a method of EuCall)
+start = time.time()
+for i in range(runs):
+    FFTp = FFTPrice(S, T, L, U, alpha, eta, N)
+end = time.time()
+GBMTimes["FFTPrice"] = (end - start)/runs
+
+print("CPU times averaged over {} runs for options priced on a GBM underlying".format(runs))
+GBMNames = ["BS", "cdfFT", "MC", "FFT"]
+GBMheaderRow = '\t'.join(GBMNames)  #Header row of method names
+GBMtimeValues = "{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(*GBMTimes.values())
+print(GBMheaderRow)
+print(GBMtimeValues)
+print()
+print()
+
+############################################################
+# 3.b) TIMING PRICES USING VG UNDERLYING
+VGmethods = ["cdfFTPrice", "MonteCarloPrice", "CMFTPrice"]
+VGTimes = {method: 0 for method in VGmethods}
+VGTimes["FFTPrice"] = 0
+
+#Change the call's process to a Variance-Gamma process as well as the maturity to 0.25.
+#This is parameter combination 4 in Carr and Madan's paper
+sigma, nu, theta = 0.25, 2, -0.1
+V = VG(S0, r, sigma, theta, nu)
+call.S = V
+call.T = 5  #For small maturities (eg. 1), the cdfFT method results in large errors.
+
+#To be improved: use a more reliable method that tracks CPU time instead of time.time()
+#Time non-FFT methods
+for method in VGmethods:
+    start = time.time()
+    for i in range(runs):
+        for strike in K:
+            call.K = strike
+            getattr(EuCall, method)(call)
+    end = time.time()
+    VGTimes[method] = (end - start)/runs
+
+#Time FFT method (needs to be separate as it is not a method of EuCall)
+start = time.time()
+for i in range(runs):
+    FFTp = FFTPrice(V, T, L, U, alpha, eta, N)
+end = time.time()
+VGTimes["FFTPrice"] = (end - start)/runs
+
+print("CPU times averaged over {} runs for options priced on a VG underlying".format(runs))
+VGNames = ["cdfFT", "MC", "CMFT", "FFT"]
+VGheaderRow = '\t'.join(VGNames)  #Header row of method names
+VGtimeValues = "{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(*VGTimes.values())
+print(VGheaderRow)
+print(VGtimeValues)
+print()
+print()
+
+"""
 #Compare prices
-call = EuCall(0, T, S)
+sigma, nu, theta = 0.25, 2, -0.1
+V = VG(S0, r, sigma, theta, nu)
+call = EuCall(0, T, V)
+FFTp = FFTPrice(V, 5, L, U)
 for (i, strike) in enumerate(K):
     call.K = strike
-    print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.BlackScholesPrice(), call.cdfFTPrice(), call.MonteCarloPrice(), FFTp[i]))
-    #print("{:.4f} {:.4f} {:.4f}".format(call.MonteCarloPrice(), call.cdfFTPrice(), FFTp[i]))
-    
+    #print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.BlackScholesPrice(), call.cdfFTPrice(), call.MonteCarloPrice(), FFTp[i]))
+    print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.MonteCarloPrice(), call.cdfFTPrice(), call.CMFTPrice(), FFTp[i]))
+"""
