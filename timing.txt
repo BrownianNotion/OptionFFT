@@ -1,0 +1,10 @@
+CPU times averaged over 10 runs for options priced on a GBM underlying
+BS      cdfFT   MC      FFT     
+0.01	0.61	3.96	0.00
+
+
+CPU times averaged over 10 runs for options priced on a VG underlying
+cdfFT   MC      CMFT    FFT     
+5.35	5.74	2.64	0.00
+
+

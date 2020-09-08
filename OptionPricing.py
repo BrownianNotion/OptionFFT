@@ -245,7 +245,8 @@ GBMTimes["FFTPrice"] = (end - start)/runs
 
 print("CPU times averaged over {} runs for options priced on a GBM underlying".format(runs))
 GBMNames = ["BS", "cdfFT", "MC", "FFT"]
-GBMheaderRow = '\t'.join(GBMNames)  #Header row of method names
+headerSize = 8
+GBMheaderRow = ''.join([method.ljust(headerSize) for method in GBMNames])  #Header row of method names
 GBMtimeValues = "{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(*GBMTimes.values())
 print(GBMheaderRow)
 print(GBMtimeValues)
@@ -285,7 +286,7 @@ VGTimes["FFTPrice"] = (end - start)/runs
 
 print("CPU times averaged over {} runs for options priced on a VG underlying".format(runs))
 VGNames = ["cdfFT", "MC", "CMFT", "FFT"]
-VGheaderRow = '\t'.join(VGNames)  #Header row of method names
+VGheaderRow = ''.join([method.ljust(headerSize) for method in VGNames])  #Header row of method names
 VGtimeValues = "{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(*VGTimes.values())
 print(VGheaderRow)
 print(VGtimeValues)
@@ -293,7 +294,7 @@ print()
 print()
 
 """
-#Compare prices
+#Small loop to compare prices. Testing purposes only.
 sigma, nu, theta = 0.25, 2, -0.1
 V = VG(S0, r, sigma, theta, nu)
 call = EuCall(0, T, V)
