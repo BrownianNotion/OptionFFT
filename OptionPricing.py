@@ -25,22 +25,41 @@ from scipy.stats import norm
 from scipy.fft import fft
 
 
-########################################################################
-# 1. STOCK PROCESSES
+class GeometricBrownianMotion:
+    """Creates an instance of the Geometric Brownian Motion, the standard
+    stochastic process used to model the Stock price in the original Black-
+    Scholes-Merton Model.
 
-#Geometric Brownian Motion stochastic process
-class GBM():
-    #S0 - initial stock price
-    #r - risk-free rate
-    #sigma - volatility of underlying stock
+    Parameters
+    ----------
+    S0 : float
+        The initial stock price.
+
+    r : float
+        The risk-free interest rate.
+    
+    sigma : float
+        The volatility parameter.
+
+    Attributes
+    ----------
+    S0 : float
+        The initial stock price.
+
+    r : float
+        The risk-free interest rate.
+    
+    sigma : float
+        The volatility parameter.
+
+    #REplace logmu, logsig with the actual values.
+    """
+
+
     def __init__(self, S0, r, sigma):
         self.S0 = S0
         self.r = r
         self.sigma = sigma
-        #Log-Moment scaffolds. Multiply by t to get mean/var
-        #of the log process
-        self.logMu = r - 0.5 * sigma**2
-        self.logSig = sigma**2
     
     #Characteristic function of ln(GBM) at time t, evaluated at point u
     def phi(self, t, u):
@@ -127,7 +146,7 @@ class EuCall():
     #Use classical Black-Scholes to price option
     #t - time 0 <= t <= T at which option is to be evaluted
     def BlackScholesPrice(self):
-        if not isinstance(self.S, GBM):
+        if not isinstance(self.S, GeometricBrownianMotion):
             sys.exit("Black Scholes Pricing requires underlying stock to be a GBM.")
 
         S = self.S
@@ -216,7 +235,7 @@ def FFTPrice(S, T, L = 0, U = np.inf, alpha = 1.5, eta = 0.25, N = 4096):
 
 #Initialise a GBM Process
 S0, r, sigma = 100, 0.05, 0.1
-S = GBM(S0, r, sigma)
+S = GeometricBrownianMotion(S0, r, sigma)
 
 #Set Call maturity.
 T = 1
