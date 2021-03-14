@@ -61,24 +61,71 @@ class GeometricBrownianMotion:
         self.r = r
         self.sigma = sigma
     
-    #Characteristic function of ln(GBM) at time t, evaluated at point u
+    
     def phi(self, t, u):
-        return np.exp(-0.5*self.logSig*t * u**2 + (self.logMu*t*u + np.log(self.S0)*u)*1j)
+        """Evaluates the characteristic function of log(St), where St is the
+        stock price given by a Geometric Brownian motion.
+
+        Parameters
+        ----------
+        t : array_like(float, ndim=1)
+            Time of log-stock price for charateristic function to be computed;
+            usually the maturity of the call option.
+
+        u : array_like(float, ndim=1)
+            Value at which the characteristic function of log(St) is to be
+            computed.
+
+        Returns
+        -------
+        phi_t(u) : array_like(float, ndim=1)
+            Value of characteristic function of log(St) computed at u. 
+        """
+
+        S0, r, sigma = self.S0, self.r, self.sigma
+        mu = np.ln(S0) + (r - 0.5*sigma**2)*t
+        var = t*sigma**2
+        return np.exp(-1j*u*mu  - 0.5*u**2*var)
     
     #Generate a sample path of GBM with optional plot. N = number of subintervals used.
     def samplePath(self, T, N = 200, terminal = True, plot = False):
+        """Generate a sample path of Geometric Brownian motion.
+
+        Parameters
+        ----------
+        T : float
+            Terminal time of stock process.
+        
+        N : int
+            Number of subintervals to use when generating sample path.
+        
+        terminal : bool, optional
+            If true, then returns only the terminal simulated stock price
+            at time T, otherwise returns the entire simulated path.
+
+        plot : bool, optional
+            If true, plots and displays the generated sample path.
+
+        Returns
+        -------
+        S_sim : array_like(float, ndim=1)
+            The simulated value of St at each of the subintervals on a uniform
+            partition with increment size T/N.
+
+        #NOTE : SAMPLE PATH NOW RETURNS THE WHOLE ARRAY, FIX PARTS THAT USE RETURN TYPE AS SCALAR
+        """
         dt = T/N
         t = np.linspace(0, T, N + 1)
         dW = np.random.normal(0, np.sqrt(dt), N)
-        W = np.insert(np.cumsum(dW), 0, 0)  #W_0 = 0 and add increments to generate Brownian Motion
-        if terminal:
-            return self.S0 * np.exp(self.logMu*T + self.sigma*W[-1])
-        else:
-            St = self.S0 * np.exp(self.logMu*t + self.sigma*W)
-            if plot:
-                plt.plot(t, St)
+        W = np.insert(np.cumsum(dW), 0, 0)  
+
+        S0, r, sigma = self.S0, self.r, self.sigma
+        S_sim = S0 * np.exp((r - 0.5*sigma**2)*t + sigma*W)
+        if plot:
+                plt.plot(t, S_sim)
                 plt.show()
-            return St
+        return S_sim
+        
 
 #Variance-Gamma Process
 class VG():
