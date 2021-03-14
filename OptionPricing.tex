@@ -91,7 +91,7 @@
 		\end{align*}
 		where \( b = \frac{1}{2}N\lambda \) and \( \lambda \eta = \frac{2\pi}{N} \), the Fast-Fourier Transform can be directly applied to compute a range of call prices. 
 		\begin{align*}
-		C(k_{u})\approx \frac{e^{-\alpha k_u}}{\pi}\sum_{j = 0}^{N-1}e^{-2\pi i j k/ N}e^{ibv_j}\cdot\frac{\eta}{3}\left[3 + (-1)^{j+1} - \delta_{j}\right]
+		C(k_{u})\approx \frac{e^{-\alpha k_u}}{\pi}\sum_{j = 0}^{N-1}e^{-2\pi i j u/ N}e^{ibv_j}\psi_{T}(v_j)\cdot\frac{\eta}{3}\left[3 + (-1)^{j+1} - \delta_{j}\right]
 		\end{align*}
 		where the Kronecker delta is defined as \( \delta_{j} = 1 \) if \( j = 0 \) and \( 0 \) otherwise. The drawback of the FFT method is that relies on a predefined strike-price spacing, not only is it difficult to calculate call prices for arbitrary strikes, but most of the prices are not useful (these options are very far in or out-of the money). Furthermore, it should be note there is a tradeoff between pricing accuracy by selecting higher \( N \) and small strike-spacing (lower \( N \)).\\\\ Due to its dependence on a predefined strike partition, the \colorbox{gray!25}{\texttt{FFTPrice}} function is included outside the call option class with separate helper functions to define the log-strike partition and desired upper/lower bounds for the strike prices.
 		\subsection{Monte-Carlo Simulations}

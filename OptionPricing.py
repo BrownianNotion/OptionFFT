@@ -1,10 +1,29 @@
+#!/usr/bin/env python
+"""Implementation of Fast Fourier Transform method for European call options.
+
+This module provides:
+    1. Classes for the Geometric Brownian Motion and Variance Gamma processes
+    2. Call option pricing functions for Monte Carlo, Fourier Inversion and 
+       Fast Fourier transform methods
+    3. Price and time comparisons between methods
+
+References:
+-----------
+
+Carr, P, Madan, D.B, 1999, 'Option Valuation using the Fast Fourier Transform', Journal of
+Computational Finance, 2, 61-63.
+http://faculty.baruch.cuny.edu/lwu/890/CarrMadan99.pdf
+"""
+import sys
+import time
+
 import numpy as np
+import matplotlib.pyplot as plt
+
 from scipy.integrate import quad
 from scipy.stats import norm
 from scipy.fft import fft
-import sys
-import matplotlib.pyplot as plt
-import time
+
 
 ########################################################################
 # 1. STOCK PROCESSES
