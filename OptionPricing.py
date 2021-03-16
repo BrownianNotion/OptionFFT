@@ -30,29 +30,16 @@ class GeometricBrownianMotion:
     stochastic process used to model the Stock price in the original Black-
     Scholes-Merton Model.
 
-    Parameters
-    ----------
+    Parameters / Attributes
+    -----------------------
     S0 : float
         The initial stock price.
 
     r : float
-        The risk-free interest rate.
+        The continuously compounded risk-free interest rate.
     
     sigma : float
         The volatility parameter.
-
-    Attributes
-    ----------
-    S0 : float
-        The initial stock price.
-
-    r : float
-        The risk-free interest rate.
-    
-    sigma : float
-        The volatility parameter.
-
-    #REplace logmu, logsig with the actual values.
     """
 
 
@@ -81,9 +68,8 @@ class GeometricBrownianMotion:
         phi_t(u) : array_like(float, ndim=1)
             Value of characteristic function of log(St) computed at u. 
         """
-
         S0, r, sigma = self.S0, self.r, self.sigma
-        mu = np.ln(S0) + (r - 0.5*sigma**2)*t
+        mu = np.log(S0) + (r - 0.5*sigma**2)*t
         var = t*sigma**2
         return np.exp(-1j*u*mu  - 0.5*u**2*var)
     
@@ -121,83 +107,208 @@ class GeometricBrownianMotion:
         return S_sim[-1]
         
 
-class VG:
+class VarianceGamma:
+    """Creates an instance of a stock process, where log-returns are given by
+    the Variance-Gamma process. 
+
+    The formula for the Stock price at time t is given by:
+        S_t = exp((r + ω)t + X_t(θ, σ, ν)),
+
+    where X_t(θ, σ, ν)) is a Variance-Gamma process. 
+
+    For further information on the Variance-Gamma process, see:
+    https://engineering.nyu.edu/sites/default/files/2018-09/CarrEuropeanFinReview1998.pdf
+
+    Parameters / Attributes
+    -----------------------
+    S0 : float
+        The initial stock price
+    
+    r : float
+        The continuously compounded risk-free interest rate.
+    
+    sigma : float
+        Parameter controlling the volatility of the Variance-Gamma process.
+    
+    theta : float
+        Parameter controlling the drift of the Variance-Gamma process.
+    
+    nu : float
+        Parameter controlling the variance rate of Gamma process behind the
+        Variance-Gamma process.
+    
+    omega : float, optional
+        The drift correction term. Default value is
+            ω = 1/ν log(1 - θν - 0.5νσ^2),
+        which ensures the stock's expected return is equal to the continuously
+        compounded risk free rate r.
+    """
     def __init__(self, S0, r, sigma, theta, nu, omega=None):
         self.S0 = S0
         self.r = r
         self.sigma = sigma
         self.theta = theta
         self.nu = nu
-        #Default value of omega is such that mean return is r
-        if not omega:
+
+        if omega is None:
             omega = (1/nu) * np.log(1 - theta*nu - 0.5*nu*sigma**2)
         self.omega = omega
     
-    #Characteristic function of the r.v. at time t evaluated at u.
+   
     def phi(self, t, u):
-        if t < 0:
-            sys.exit("Time must be positive.")
-        denom = np.power((1 - 1j*self.theta*self.nu*u + 0.5*u**2 * self.sigma**2 * self.nu), T/self.nu)
-        return np.exp(1j*u*(np.log(self.S0) + (r + self.omega)*t)) / denom
+        """Evaluates the characteristic function of log(St), where St is the
+        stock price given by a Variance-Gamma process.
+
+        Parameters
+        ----------
+        t : array_like(float, ndim=1)
+            Time of log-stock price for charateristic function to be computed;
+            usually the maturity of the call option.
+
+        u : array_like(float, ndim=1)
+            Value at which the characteristic function of log(St) is to be
+            computed.
+
+        Returns
+        -------
+        phi_t(u) : array_like(float, ndim=1)
+            Value of characteristic function of log(St) computed at u. 
+        """
+        S0, theta, sigma, nu = self.S0, self.theta, self.sigma, self.nu
+        omega = self.omega
+        denom = np.power((1 - 1j*theta*nu*u + 0.5*(u*sigma)**2*nu), T/nu)
+        return np.exp(1j*u*(np.log(S0) + (r + omega)*t)) / denom
     
-    #Generate a sample path of the VG process, same input parameters as for GBM
+
     def sample_path(self, T, N = 200, terminal = True, plot = False):
+        """Generate a sample path of stock based on the Variance-Gamma process
+        and return the terminal stock price.
+
+        Parameters
+        ----------
+        T : float
+            Terminal time of stock process.
+        
+        N : int
+            Number of subintervals to use when generating sample path.
+        
+        plot : bool, optional
+            If true, plots and displays the generated sample path.
+
+        Returns
+        -------
+        ST : float
+            The simulated value of the terminal stock price at time T.
+        """
+        S0, theta, sigma, nu = self.S0, self.theta, self.sigma, self.nu
+        r, omega = self.r, self.omega
+
         dt = T/N
         t = np.linspace(0, T, N + 1)
         Z = np.random.normal(0, 1, N)
-        a, b = dt/self.nu, self.nu
-        dG = np.random.gamma(a, b, N) #Gamma increments
-        X = self.theta*np.cumsum(dG) + self.sigma*np.cumsum(np.sqrt(dG)*Z)
-        X = np.insert(X, 0, 0) #X_0 = 0
-        if terminal:
-            return self.S0 * np.exp((self.r + self.omega)*T + X[-1])
-        else:
-            St = self.S0 * np.exp((self.r + self.omega)*t + X)
-            if plot:
-                plt.plot(t, X)
-                plt.show()
-            return St
+
+        # Generate gamma increments and evaluate at Arithmetic Brownian
+        # motion
+        dG = np.random.gamma(dt/nu, nu, N)
+        X = theta*np.cumsum(dG) + sigma*np.cumsum(np.sqrt(dG)*Z)
+        X = np.insert(X, 0, 0)    # Set X_0 = 0
+        S_Sim = S0 * np.exp((r + omega)*t + X)
+
+        if plot:
+            plt.plot(t, S_Sim)
+            plt.show()
+        return S_Sim[-1]
 
 ########################################################################
 # 2. OPTION PRICING FUNCTIONS
 
 #Vanilla European call option class
 #May want to add dividends/arbitrary time later
-class EuCall():
-    #K - strike price, T - time to maturity, S - a stochastic process object
-    #that models the underlying stock
-    def __init__(self, K, T, process):
+class EuCall:
+    """Creates an instance of a European Call option given an underlying
+    stock process.
+
+    Parameters / Attributes
+    -----------------------
+    K : float
+        Strike price of the call option.
+    
+    T : float
+        Time to maturity of the call option.
+    
+    S : GeometricBrownianMotion or VarianceGamma
+        An instance of the GeometricBrownianMotion or VarianceGamma classes
+        to specify the process and the parameters that should be used to model
+        the underlying stock.
+    """
+    def __init__(self, K, T, S):
         self.K = K
         self.T = T
-        self.S = process
+        self.S = S
 
-    #Compute payoff at maturity given a terminal asset price
+
     def payoff(self, ST):
+        """Computes the terminal payoff of the call option.
+
+        Parameters
+        ----------
+        ST : float
+            Terminal stock price.
+        
+        Returns
+        -------
+        CT : float
+            Terminal payoff of the call option.
+        """
         return max(ST - self.K, 0)
 
     #Monte Carlo method - simulate n sample paths, compute the payoff, average these and discount.
-    def MonteCarloPrice(self, n = 500):
-        total = 0
+    def monte_carlo_price(self, n=1):
+        """Computes the price of the call option using Monte Carlo simulation.
+
+        Parameters
+        ----------
+        n : int
+            Number of sample paths of the stock price to simulate.
+        
+        Returns
+        -------
+        C0 : float
+            Call price approximated by averaging the discounted terminal 
+            payoffs of the call option across the n simulations.
+        """
+        r, T = self.S.r, self.T
+
+        total_payoff = 0
         for i in range(n):
             ST = self.S.sample_path(T)
-            total += self.payoff(ST)
-        return np.exp(-self.S.r*self.T) * (total / n)
+            total_payoff += self.payoff(ST)
+        return 1/n *np.exp(-r*T)*total_payoff
 
-    #Use classical Black-Scholes to price option
-    #t - time 0 <= t <= T at which option is to be evaluted
+
     def BlackScholesPrice(self):
-        if not isinstance(self.S, GeometricBrownianMotion):
-            sys.exit("Black Scholes Pricing requires underlying stock to be a GBM.")
+        """Computes the price of the call option using the classical
+        Black-Scholes formula.
 
-        S = self.S
-        #Compute risk-neutral probability of finishing in the money
-        d2 = (np.log(S.S0 / self.K) + S.logMu * self.T) / S.sigma * np.sqrt(self.T)
-        PrITM = norm.cdf(d2)
-        #Compute Option's delta
-        d1 = d2 + S.sigma * self.T
+        Returns
+        -------
+        C0 : float
+            Call price computed using the Black-Scholes formula:
+                C0 = S0 N(d1) - Ke^(-rT) N(d2),
+            where the underlying stock process S is required to be a
+            Geometric Brownian motion.
+        """
+        if not isinstance(self.S, GeometricBrownianMotion):
+            raise("Black Scholes Pricing requires underlying stock to be a GBM.")
+
+        K, T, S = self.K, self.T, self.S
+        S0, r, sigma = S.S0, S.r, S.sigma
+
+        d2 = (np.log(S.S0 / K) + (S.r - 0.5*sigma**2) * T) / sigma*np.sqrt(T)
+        d1 = d2 + sigma*np.sqrt(T)
+        PrITM = norm.cdf(d2)       
         delta = norm.cdf(d1)
-        #Price = S0 * delta - Ke^(-rT) *PrITM
-        return S.S0 * delta - self.K * np.exp(-S.r * self.T) * PrITM
+        return S0*delta - K*np.exp(-r*T)*PrITM
 
     #Fourier Transform method to compute option prices based on inversion method by Gil-Palez.
     #Expression based on rewriting the cdf using Fourier Transforms and characteristic functions
@@ -295,13 +406,14 @@ K = np.array([strike for strike in K if strike > L and strike < U])
 
 ############################################################
 # 3.a) TIMING PRICES USING GBM UNDERLYING
-GBMmethods = ["BlackScholesPrice", "cdfFTPrice", "MonteCarloPrice"]
+GBMmethods = ["cdfFT", "BlackScholesPrice", "monte_carlo_price"]
 GBMTimes = {method: 0 for method in GBMmethods}  #Dictionary to store average time for each method
 GBMTimes["FFTPrice"] = 0
 
 #Instance of call, strike will be constantly modified instead of creating new class
 call = EuCall(0, T, S) 
 runs = 10     #Number of runs to average the time over
+
 
 #To be improved: use a more reliable method that tracks CPU time instead of time.time()
 #Time non-FFT methods
@@ -328,19 +440,17 @@ GBMheaderRow = ''.join([method.ljust(headerSize) for method in GBMNames])  #Head
 GBMtimeValues = "{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(*GBMTimes.values())
 print(GBMheaderRow)
 print(GBMtimeValues)
-print()
-print()
 
 ############################################################
 # 3.b) TIMING PRICES USING VG UNDERLYING
-VGmethods = ["cdfFTPrice", "MonteCarloPrice", "CMFTPrice"]
+VGmethods = ["cdfFT", "monte_carlo_price", "CMFTPrice"]
 VGTimes = {method: 0 for method in VGmethods}
 VGTimes["FFTPrice"] = 0
 
 #Change the call's process to a Variance-Gamma process as well as the maturity to 0.25.
 #This is parameter combination 4 in Carr and Madan's paper
 sigma, nu, theta = 0.25, 2, -0.1
-V = VG(S0, r, sigma, theta, nu)
+V = VarianceGamma(S0, r, sigma, theta, nu)
 call.S = V
 call.T = 5  #For small maturities (eg. 1), the cdfFT method results in large errors.
 
@@ -374,11 +484,11 @@ print()
 """
 #Small loop to compare prices. Testing purposes only.
 sigma, nu, theta = 0.25, 2, -0.1
-V = VG(S0, r, sigma, theta, nu)
+V = VarianceGamma(S0, r, sigma, theta, nu)
 call = EuCall(0, T, V)
 FFTp = FFTPrice(V, 5, L, U)
 for (i, strike) in enumerate(K):
     call.K = strike
-    #print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.BlackScholesPrice(), call.cdfFTPrice(), call.MonteCarloPrice(), FFTp[i]))
-    print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.MonteCarloPrice(), call.cdfFTPrice(), call.CMFTPrice(), FFTp[i]))
+    #print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.BlackScholesPrice(), call.cdfFTPrice(), call.monte_carlo_price(), FFTp[i]))
+    print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.monte_carlo_price(), call.cdfFTPrice(), call.CMFTPrice(), FFTp[i]))
 """
