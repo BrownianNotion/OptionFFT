@@ -87,9 +87,10 @@ class GeometricBrownianMotion:
         var = t*sigma**2
         return np.exp(-1j*u*mu  - 0.5*u**2*var)
     
-    #Generate a sample path of GBM with optional plot. N = number of subintervals used.
-    def samplePath(self, T, N = 200, terminal = True, plot = False):
-        """Generate a sample path of Geometric Brownian motion.
+
+    def sample_path(self, T, N = 200, plot = False):
+        """Generate a sample path of Geometric Brownian motion and return
+        the terminal stock price.
 
         Parameters
         ----------
@@ -99,20 +100,13 @@ class GeometricBrownianMotion:
         N : int
             Number of subintervals to use when generating sample path.
         
-        terminal : bool, optional
-            If true, then returns only the terminal simulated stock price
-            at time T, otherwise returns the entire simulated path.
-
         plot : bool, optional
             If true, plots and displays the generated sample path.
 
         Returns
         -------
-        S_sim : array_like(float, ndim=1)
-            The simulated value of St at each of the subintervals on a uniform
-            partition with increment size T/N.
-
-        #NOTE : SAMPLE PATH NOW RETURNS THE WHOLE ARRAY, FIX PARTS THAT USE RETURN TYPE AS SCALAR
+        ST : float
+            The simulated value of the terminal stock price at time T.
         """
         dt = T/N
         t = np.linspace(0, T, N + 1)
@@ -124,11 +118,10 @@ class GeometricBrownianMotion:
         if plot:
                 plt.plot(t, S_sim)
                 plt.show()
-        return S_sim
+        return S_sim[-1]
         
 
-#Variance-Gamma Process
-class VG():
+class VG:
     def __init__(self, S0, r, sigma, theta, nu, omega=None):
         self.S0 = S0
         self.r = r
@@ -148,7 +141,7 @@ class VG():
         return np.exp(1j*u*(np.log(self.S0) + (r + self.omega)*t)) / denom
     
     #Generate a sample path of the VG process, same input parameters as for GBM
-    def samplePath(self, T, N = 200, terminal = True, plot = False):
+    def sample_path(self, T, N = 200, terminal = True, plot = False):
         dt = T/N
         t = np.linspace(0, T, N + 1)
         Z = np.random.normal(0, 1, N)
@@ -186,7 +179,7 @@ class EuCall():
     def MonteCarloPrice(self, n = 500):
         total = 0
         for i in range(n):
-            ST = self.S.samplePath(T)
+            ST = self.S.sample_path(T)
             total += self.payoff(ST)
         return np.exp(-self.S.r*self.T) * (total / n)
 
