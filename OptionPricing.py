@@ -286,7 +286,7 @@ class EuCall:
         return 1/n *np.exp(-r*T)*total_payoff
 
 
-    def BlackScholesPrice(self):
+    def black_scholes_price(self):
         """Computes the price of the call option using the classical
         Black-Scholes formula.
 
@@ -406,7 +406,7 @@ K = np.array([strike for strike in K if strike > L and strike < U])
 
 ############################################################
 # 3.a) TIMING PRICES USING GBM UNDERLYING
-GBMmethods = ["cdfFT", "BlackScholesPrice", "monte_carlo_price"]
+GBMmethods = ["cdfFT", "black_scholes_price", "monte_carlo_price"]
 GBMTimes = {method: 0 for method in GBMmethods}  #Dictionary to store average time for each method
 GBMTimes["FFTPrice"] = 0
 
@@ -489,6 +489,6 @@ call = EuCall(0, T, V)
 FFTp = FFTPrice(V, 5, L, U)
 for (i, strike) in enumerate(K):
     call.K = strike
-    #print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.BlackScholesPrice(), call.cdfFTPrice(), call.monte_carlo_price(), FFTp[i]))
+    #print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.black_scholes_price(), call.cdfFTPrice(), call.monte_carlo_price(), FFTp[i]))
     print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.monte_carlo_price(), call.cdfFTPrice(), call.CMFTPrice(), FFTp[i]))
 """
