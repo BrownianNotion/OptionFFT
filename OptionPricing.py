@@ -219,9 +219,6 @@ class VarianceGamma:
             plt.show()
         return S_Sim[-1]
 
-########################################################################
-# 2. OPTION PRICING FUNCTIONS
-
 #Vanilla European call option class
 #May want to add dividends/arbitrary time later
 class EuCall:
