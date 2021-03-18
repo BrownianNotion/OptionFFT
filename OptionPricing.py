@@ -307,6 +307,7 @@ class EuCall:
         delta = norm.cdf(d1)
         return S0*delta - K*np.exp(-r*T)*PrITM
 
+    #bop.
     #Fourier Transform method to compute option prices based on inversion method by Gil-Palez.
     #Expression based on rewriting the cdf using Fourier Transforms and characteristic functions
     def cdfFTPrice(self):
