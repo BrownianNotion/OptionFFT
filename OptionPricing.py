@@ -404,7 +404,7 @@ K = np.array([strike for strike in K if strike > L and strike < U])
 
 ############################################################
 # 3.a) TIMING PRICES USING GBM UNDERLYING
-GBMmethods = ["cdfFT", "black_scholes_price", "monte_carlo_price"]
+GBMmethods = ["cdfFTPrice", "black_scholes_price", "monte_carlo_price"]
 GBMTimes = {method: 0 for method in GBMmethods}  #Dictionary to store average time for each method
 GBMTimes["FFTPrice"] = 0
 
@@ -432,7 +432,7 @@ end = time.time()
 GBMTimes["FFTPrice"] = (end - start)/runs
 
 print("CPU times averaged over {} runs for options priced on a GBM underlying".format(runs))
-GBMNames = ["BS", "cdfFT", "MC", "FFT"]
+GBMNames = ["cdfFTPrice", "BS", "MC", "FFT"]
 headerSize = 8
 GBMheaderRow = ''.join([method.ljust(headerSize) for method in GBMNames])  #Header row of method names
 GBMtimeValues = "{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(*GBMTimes.values())
@@ -441,7 +441,7 @@ print(GBMtimeValues)
 
 ############################################################
 # 3.b) TIMING PRICES USING VG UNDERLYING
-VGmethods = ["cdfFT", "monte_carlo_price", "CMFTPrice"]
+VGmethods = ["cdfFTPrice", "monte_carlo_price", "CMFTPrice"]
 VGTimes = {method: 0 for method in VGmethods}
 VGTimes["FFTPrice"] = 0
 
