@@ -1,5 +1,6 @@
 \documentclass[11pt]{article}
 \usepackage[margin=0.8in]{geometry}
+\usepackage{booktabs}
 \usepackage{bm}
 \usepackage{amsfonts}
 \usepackage{amsthm}
@@ -120,7 +121,11 @@
 			\item Apply the appropriate exponential transformation (see definitions of GBM/VG in the previous sections) to generate a sample path of the underlying asset. Note, in the call-price calculations, only the terminal value of the asset is used. 
 		\end{enumerate}
 	\section{Results}
-	Each pricing method was applied to price a range of call options of strike prices between 70 and 130, using underlying process models (GBM and VG). The parameters for GBM were \( S_0 = 100, r = 0.05 \), \( \sigma = 0.1 \) and \( T = 1 \). The parameters for VG were mostly similar to case 4 in Carr and Madan's paper: \( S_0 = 100, r = 0.05, \sigma = 0.25, \nu = 2, \theta = -0.1 \), \( T = 5 \). A larger maturity was used to reduce the tendency to produce large oscillations for smaller maturities. The methods were timed using Python's \colorbox{gray!25}{\texttt{time.time()}} and averaged over 10 runs. The average time used by each method in seconds is shown in the tables below:
+	Each pricing method was applied to price a range of call options of strike prices between 70 and 130, using underlying process models (GBM and VG). The parameters for GBM were \( S_0 = 100, r = 0.05 \), \( \sigma = 0.1 \) and \( T = 1 \). The parameters for VG were the same as case 4 in Carr and Madan's paper: \( S_0 = 100, r = 0.05, \sigma = 0.25, \nu = 2, \theta = -0.1 \), \( T = 1 \). The table below displays the absolute and relative errors of the FFT pricing method:
+	
+	\input{error_table.tex} 
+	
+	\noindent The methods were timed using Python's \colorbox{gray!25}{\texttt{time.time()}} and averaged over 10 runs. The average time used by each method in seconds is shown in the tables below:
 	\begin{center}
 		\begin{tabular}{cc}
 			\hline
@@ -146,7 +151,7 @@
 		\end{tabular}
 	\end{center}
 	Tables 1 and 2: (\textit{left}) times for the GBM methods, (\textit{right}) times for the VG methods.\\\\
-	Clearly, the Fast Fourier Transform vastly outperformed the other methods in terms of efficiency, even with the calculation of additional unnecessary call prices. Monte Carlo simulations performed the worst each time, suggesting this method is not particularly viable for real-time option pricing. It was noted that even with 500 simulations, the Monte Carlo price still performed worse than the Fourier Inversion method in the case of the GBM underlying in terms of accuracy when compared to the analytic formula. The Fourier Inversion method however, performed very poorly on a VG underlying possibly due to issues with the singularity at 0. Whilst the FFT approach is slightly less accurate than other methods, it should definitely be considered as an alternative pricing method. 
+	Clearly, the Fast Fourier Transform vastly outperformed the other methods in terms of efficiency, even with the calculation of additional unnecessary call prices. Monte Carlo simulations performed the worst each time, suggesting this method is not particularly viable for real-time option pricing. It was noted that even with 500 simulations, the Monte Carlo price still performed worse than the Fourier Inversion method in the case of the GBM underlying in terms of accuracy when compared to the analytic formula. The Fourier Inversion method however, performed very poorly on a VG underlying possibly due to issues with the singularity at 0. The FFT approach both accurate and extremely fast and it should definitely be considered as an alternative pricing method. 
 		
 	
 	\section{References}

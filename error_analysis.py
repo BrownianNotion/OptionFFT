@@ -107,10 +107,27 @@ rel_errs = [rel_GBM.mean(), rel_VG.mean()]
 err_data = [abs_errs, rel_errs]
 err_df = pd.DataFrame(err_data, 
                       index=["GBM", "VG"], 
-                      columns=["Relative", "Absolute"])
+                      columns=["Absolute", "Relative"])
+
+# Change formatting of numbers in table
+err_df["Absolute"] = err_df["Absolute"].apply("{:.4e}".format)
+err_df["Relative"] = err_df["Relative"].apply("{:.2%}".format)
+
+# Create tex
 caption = "Table comparing the absolute and relative errors of the FFT pricing\
             method when the underlying stock process is a Geometric Brownian\
             motion or Variance-Gamma process."
-err_df.to_latex("error_table.tex", 
-                caption=caption,
-                label="tab:err_table")
+table_tex = err_df.to_latex(caption=caption, label="tab:err_table")
+
+# Replace rules with hline for consistency and bold headings
+table_tex = table_tex.replace(r"\toprule", r"\hline" + "\n" + r"\hline")
+table_tex = table_tex.replace(r"\midrule", r"\hline")
+table_tex = table_tex.replace(r"\bottomrule", r"\hline")
+table_tex = table_tex.replace("Relative", r"\textbf{Relative}")
+table_tex = table_tex.replace("Absolute", r"\textbf{Absolute}")
+table_tex = table_tex.replace(r"\begin{table}", r"\begin{table}[h]")
+
+# Write to table.tex
+f = open("error_table.tex", "w+")
+f.write(table_tex)
+f.close()
