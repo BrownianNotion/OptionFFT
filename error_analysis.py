@@ -87,10 +87,30 @@ all_prices_names = ["Strike"] + \
 all_prices_df = pd.DataFrame(data=all_prices, columns=all_prices_names)
 all_prices_df.to_csv("all_prices.csv")
 
-# Compute relative errors in the FFT price for each underlying type. 
+GBM_df = pd.DataFrame(data=GBM_prices, columns=GBM_names)
+VG_df = pd.DataFrame(data=VG_prices, columns=VG_names)
+
+# Compute average absolute and relative errors in the FFT price for each 
+# underlying type. 
 # We use the Black-Scholes price as the theoretical for Geometric Brownian 
 # motion and Fourier an average of the Fourier Inversion and Modified call 
 # as the theorical for Variance Gamma process.
+abs_GBM = abs(GBM_df["Black-Scholes"] - GBM_df["Fast-Fourier Transform"])
+rel_GBM = abs_GBM/GBM_df["Black-Scholes"]
+ave_VG = (VG_df["Fourier Inversion"] + VG_df["Modified Call"])/2
+abs_VG  = abs(ave_VG - VG_df["Fast-Fourier Transform"])
+rel_VG = abs_VG/ave_VG
 
-#GBM_df = pd.DataFrame(data=GBM_prices, columns=GBM_names)
-#VG_df = pd.DataFrame(data=VG_prices, columns=VG_names)
+# Convert to LaTeX table
+abs_errs = [abs_GBM.mean(), abs_VG.mean()]
+rel_errs = [rel_GBM.mean(), rel_VG.mean()]
+err_data = [abs_errs, rel_errs]
+err_df = pd.DataFrame(err_data, 
+                      index=["GBM", "VG"], 
+                      columns=["Relative", "Absolute"])
+caption = "Table comparing the absolute and relative errors of the FFT pricing\
+            method when the underlying stock process is a Geometric Brownian\
+            motion or Variance-Gamma process."
+err_df.to_latex("error_table.tex", 
+                caption=caption,
+                label="tab:err_table")
