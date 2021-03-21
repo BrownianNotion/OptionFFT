@@ -465,7 +465,7 @@ def MCallFTo(S, T, v, alpha):
     denom = (alpha**2+alpha-v**2) + (2*alpha+1)*v*1j
     return np.exp(-S.r*T)*S.phi(T, v - (alpha+1)*1j) / denom
 
-#Return a list of b (left-endpoint), lamba (log-strike spacing) and log-strike prices array k
+
 def logStrikePartition(eta = 0.25, N = 4096):
     """Creates a partition of strike prices in the log-space for use in the
     FFT pricing functions.
@@ -497,9 +497,7 @@ def logStrikePartition(eta = 0.25, N = 4096):
     k = -b + lamb*np.arange(0, N)
     return (b, lamb, k)
 
-#Carr and Madan method on a lattice of log-strikes from from -pi/eta to pi/eta, right endpoint not included.
-#S - stock process, T - maturity of option, L - lower bound of strike price, K - upper bound of strike price
-#alpha - damping coeffcient that ensures integrability, eta - partition spacing, N - the number of partition points.
+
 def FFTPrice(S, T, L = 0, U = np.inf, alpha = 1.5, eta = 0.25, N = 4096):
     """Computes an array of call option prices using the Fast-Fourier
     transform method described in Carr and Madan 1999, for a specified range
@@ -563,40 +561,50 @@ def FFTPrice(S, T, L = 0, U = np.inf, alpha = 1.5, eta = 0.25, N = 4096):
     kIndices = np.logical_and(np.exp(k)>L, np.exp(k)<U)
     return callPrices[kIndices]
 
-########################################################################
-# 3. COMPARING OPTION PRICES
+if __name__ == "__main__":
+    # Compare option prices of each method if run as script.
+    # Set parameters for stock and underlying processes.
+    S0, r, sigma, T = 100, 0.05, 0.1, 1
+    sigma, nu, theta = 0.25, 2, -0.1
+    S = GeometricBrownianMotion(S0, r, sigma)
+    V = VarianceGamma(S0, r, sigma, theta, nu)
+    
+    # Initialise instance of call, set strike to 0 since it will be
+    # changed in the loop.
+    #call = EuCall(0, T, S)
+    call = EuCall(0, T, V)
 
-# Test cdf price
-S0, r, sigma = 100, 0.05, 0.1
-S = GeometricBrownianMotion(S0, r, sigma)
+    # FFT Price Parameters, using the defaults from Carr and Madan 1999.
+    alpha = 1.5
+    eta = 0.25
+    N = 4096
+    L, U = 80, 110
+    # Get strikes between L and U
+    k = logStrikePartition(eta, N)[2]
+    K = np.exp(k)
+    K = np.array([strike for strike in K if strike > L and strike < U])
+    FFTp = FFTPrice(V, T, L, U)
 
-sigma, nu, theta = 0.25, 2, -0.1
+    print("MC\tCDFT\tCMFT, FFT")
+    print_GBM = False
+    for (i, strike) in enumerate(K):
+        call.K = strike
+        if print_GBM:
+            prices_str = "{:.4f} {:.4f} {:.4f} {:.4f}".format(
+                            call.black_scholes_price(), 
+                            call.cdfFTPrice(), 
+                            call.monte_carlo_price(), 
+                            FFTp[i]
+                            )
+        else:
+            prices_str = "{:.4f} {:.4f} {:.4f} {:.4f}".format(
+                            call.monte_carlo_price(), 
+                            call.cdfFTPrice(),
+                            call.CMFTPrice(),
+                            FFTp[i]
+                            )
 
-V = VarianceGamma(S0, r, sigma, theta, nu)
-T = 1
-call = EuCall(0, T, V)
-#Set Call maturity.
-
-L = 70
-U = 130
-#FFT Price Parameters
-alpha = 1.5
-eta = 2**(-2)  #default = 2**(-2) = 0.25
-N = 2**12   #default = 2**12 = 4096
-
-#Get strikes between L and U
-k = logStrikePartition(eta, N)[2]
-K = np.exp(k)
-K = np.array([strike for strike in K if strike > L and strike < U])
-
-#call = EuCall(0, T, S)
-call = EuCall(0, T, V)
-FFTp = FFTPrice(V, T, L, U)
-print("MC\tCDFT\tCMFT, FFT")
-for (i, strike) in enumerate(K):
-    call.K = strike
-    #print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.black_scholes_price(), call.cdfFTPrice(), call.monte_carlo_price(), FFTp[i]))
-    print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.monte_carlo_price(), call.cdfFTPrice(), call.CMFTPrice(), FFTp[i]))
+        print(prices_str)
 
 """
 for strike in K:
