@@ -425,6 +425,8 @@ class EuCall:
         ----------
         alpha : float, optional
             The modification parameter used in defining the modified call.
+            Can be thought as a damping coefficient required to ensure 
+            integrability of the Fourier transform of the modified call.
             Usually given as 1/4 of the upper bound on alpha.
         """
         k = np.log(self.K)
@@ -481,34 +483,79 @@ def logStrikePartition(eta = 0.25, N = 4096):
 
     Returns
     -------
-    log_strikes : list
-        List containing [b, lamb, k], where k is a numpy array with N strike
-        prices in the log space uniformly spaced in the interval [-b, b). 
-        The spacing size between log-strikes in k is lamb.
+    b : float
+        See description of k.
+    lamb : float
+        See description of k.
+    k : array_like(float, ndim=1)
+        Numpy array with N strike prices in the log space uniformly spaced in
+        the interval [-b, b). lamb is the spacing size between log-strikes 
+        in k.
     """
     b = np.pi/eta
     lamb = 2*np.pi/(eta*N)
     k = -b + lamb*np.arange(0, N)
-    return [b, lamb, k]
+    return (b, lamb, k)
 
 #Carr and Madan method on a lattice of log-strikes from from -pi/eta to pi/eta, right endpoint not included.
 #S - stock process, T - maturity of option, L - lower bound of strike price, K - upper bound of strike price
 #alpha - damping coeffcient that ensures integrability, eta - partition spacing, N - the number of partition points.
 def FFTPrice(S, T, L = 0, U = np.inf, alpha = 1.5, eta = 0.25, N = 4096):
-    #Create integration partition
+    """Computes an array of call option prices using the Fast-Fourier
+    transform method described in Carr and Madan 1999, for a specified range
+    of strike prices.
+
+    Parameters
+    ----------
+    S : VarianceGamma or GeometricBrownianMotion
+        The Stock price process of the call option.
+
+    T : float
+        Time to maturity of the call option.
+    
+    L : float, optional
+        Function returns call prices only for strikes between L and U.
+        The default values are L = 0 and U = np.inf, so call prices for all
+        strikes are returned unless otherwise specified.
+
+    U : float, optional
+        See above.
+    
+    alpha : float
+        The modification parameter used in defining the modified call. See
+        CMFT price for detailed description.
+    
+    eta : float, optional
+        The spacing size used in the quadrature of the modified call's Fourier
+        transform. Default value is 0.25 from Carr and Madan 1999.
+
+    N : int, optional
+        The number of points used in the quadrature of the modified call's
+        Fourier transform. Defaul value is 2**12 = 4096 from Carr and Madan
+        1999. Note, N should be a power of 2 for ideal performance in the fft.
+    
+    Returns
+    -------
+    callPrices : array_like(float, ndim=1)
+        Call prices calculated using the FFT approach for strike prices
+        between L and U.
+    """
+    # Create integration partition
     V = np.arange(0, N*eta, eta)
 
-    #Create log-strike partition
+    # Create log-strike partition
     kPart = logStrikePartition(eta, N)
-    b = kPart[0]
-    k = kPart[2]
+    b, k = kPart[0], kPart[2]
 
-    #Compute Simpson's rule weights
-    Weights = 3 + np.power(-1, np.arange(0, N))
-    Weights[0] -= 1  #Kronecker Delta on the first weight
+    # Compute Simpson's rule weights
+    pm_one = np.empty((N,))
+    pm_one[::2] = -1
+    pm_one[1::2] = 1
+    Weights = 3 + pm_one
+    Weights[0] -= 1  # Kronecker Delta on the first weight
     Weights = (eta/3) * Weights
 
-    #Sequence to apply Fourier transform
+    #S equence to apply Fourier transform
     x = np.exp(1j*b*V) * MCallFTo(S, T, V, alpha) * Weights
     callPrices = np.real((np.exp(-alpha*k)/np.pi) * fft(x))
 
