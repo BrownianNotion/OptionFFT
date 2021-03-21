@@ -390,19 +390,48 @@ class EuCall:
         delta = 0.5 + intDelta/np.pi
         return S0*delta - K*np.exp(-r*T)*PrITM
 
-    #Fourier Transform of modified call e^(alpha * k) * C_T(k)
+    
     def MCallFT(self, v, alpha):
+        """Compute the Fourier transform of the modified call option.
+
+        Parameters
+        ----------
+        v : float
+            Value at which to compute the Fourier Transform.
+        
+        alpha : float
+            The modification parameter used in defining the modified call.
+        
+        Returns
+        -------
+        Psi : float
+            The Fourier transform, Psi_{T}(v), of the modified call price
+                c_{T}(k) = e^{alpha*k}*C_{T}(k),
+            evaluated at v.
+        """
+        T, r = self.T, self.S.r
         denom = (alpha**2+alpha-v**2) + (2*alpha+1)*v*1j
-        return np.exp(-self.S.r * self.T) * self.S.phi(self.T, v - (alpha + 1)*1j) / denom
+        return np.exp(-r*T)*self.S.phi(T, v - (alpha+1)*1j) / denom
 
     #Carr and Madan's analytic expression without using DFT to estimate integral
     #Useful for testing the accuracy of the FFT approximation
     def CMFTPrice(self, alpha = 1.5):
+        """Computes the price of the call option using Carr and Madan's
+        modified call method. Uses scipy to perform quadrature on the integral
+        and provides the benchmark (the best performance) that can be obtained
+        by the Fast-Fourier Transform method.
+
+        Parameters
+        ----------
+        alpha : float, optional
+            The modification parameter used in defining the modified call.
+            Usually given as 1/4 of the upper bound on alpha.
+        """
         k = np.log(self.K)
         def CMintegrand(v, alpha, k):
             return np.real(np.exp(-1j*v*k) * self.MCallFT(v, alpha))
         CMIntegral = quad(CMintegrand, 0, np.inf, args = (alpha, k))[0]
-        return np.exp(-alpha*k) * CMIntegral/ np.pi
+        return np.exp(-alpha*k)*CMIntegral / np.pi
 
 
 #Fourier Transform of modified call e^(alpha * k) * C_T(k) (version outside call class for FFT)
