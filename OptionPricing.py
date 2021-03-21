@@ -102,8 +102,8 @@ class GeometricBrownianMotion:
         S0, r, sigma = self.S0, self.r, self.sigma
         S_sim = S0 * np.exp((r - 0.5*sigma**2)*t + sigma*W)
         if plot:
-                plt.plot(t, S_sim)
-                plt.show()
+            plt.plot(t, S_sim)
+            plt.show()
         return S_sim[-1]
         
 
@@ -345,6 +345,8 @@ class EuCall:
         phi = lambda u: self.S.phi(self.T, u)  #Characteristic function of log-asset at maturity
         intITM = quad(PrITMIntegrand, 0, np.inf, args = (K, phi))[0]
         intDelta = quad(deltaIntegrand, 0, np.inf, args = (K, phi))[0]
+        print(intITM)
+        print(intDelta)
         PrITM = 0.5 + intITM/np.pi
         delta = 0.5 + intDelta/np.pi
         return self.S.S0 * delta - self.K * np.exp(-self.S.r * self.T) * PrITM
@@ -404,6 +406,24 @@ def FFTPrice(S, T, L = 0, U = np.inf, alpha = 1.5, eta = 0.25, N = 4096):
 ########################################################################
 # 3. COMPARING OPTION PRICES
 
+# Test cdf price
+S0 = 100
+r = 0.05
+sigma, nu, theta = 0.25, 2, -0.1
+V = VarianceGamma(S0, r, sigma, theta, nu)
+T = 5
+call = EuCall(0, T, V)
+
+#Set Call maturity.
+
+K = np.arange(80, 120, 10)
+
+for strike in K:
+    call.K = strike
+    print("BS\tcdfFT")
+    print("{:.4f} {:.4f}".format(call.CMFTPrice(), call.cdfFTPrice()))
+
+"""
 #Initialise a GBM Process
 S0, r, sigma = 100, 0.05, 0.1
 S = GeometricBrownianMotion(S0, r, sigma)
@@ -500,8 +520,6 @@ print(VGheaderRow)
 print(VGtimeValues)
 print()
 print()
-
-"""
 #Small loop to compare prices. Testing purposes only.
 sigma, nu, theta = 0.25, 2, -0.1
 V = VarianceGamma(S0, r, sigma, theta, nu)
