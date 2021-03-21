@@ -71,7 +71,7 @@ class GeometricBrownianMotion:
         S0, r, sigma = self.S0, self.r, self.sigma
         mu = np.log(S0) + (r - 0.5*sigma**2)*t
         var = t*sigma**2
-        return np.exp(-1j*u*mu  - 0.5*u**2*var)
+        return np.exp(1j*u*mu  - 0.5*u**2*var)
     
 
     def sample_path(self, T, N = 200, plot = False):
@@ -262,7 +262,7 @@ class EuCall:
         return max(ST - self.K, 0)
 
 
-    def monte_carlo_price(self, n=1):
+    def monte_carlo_price(self, n=1000):
         """Computes the price of the call option using Monte Carlo simulation.
 
         Parameters
@@ -303,7 +303,7 @@ class EuCall:
         K, T, S = self.K, self.T, self.S
         S0, r, sigma = S.S0, S.r, S.sigma
 
-        d2 = (np.log(S.S0 / K) + (S.r - 0.5*sigma**2) * T) / sigma*np.sqrt(T)
+        d2 = (np.log(S0/K) + (r - 0.5*sigma**2)*T) / sigma*np.sqrt(T)
         d1 = d2 + sigma*np.sqrt(T)
         PrITM = norm.cdf(d2)       
         delta = norm.cdf(d1)
@@ -322,34 +322,48 @@ class EuCall:
             The option price is then given by
                 C0 = S0*Delta - Ke^{-rT}*PrITM.
         """
-        #Integrands for the analytic Fourier Transform method to compute option prices
-        def PrITMIntegrand(u, K, phi):
+        S0, r, K, T = self.S.S0, self.S.r, self.K, self.T
+        k = np.log(K) 
+        phi = self.S.phi
+
+        def PrITMIntegrand(u):
             """The integrand in the probability of finishing in the money.
 
             Parameters
             ----------
             u : float
                 Value that integrand is to be evaluated at.
-            K : float
-                Strike price of the call option.
-            phi :  
-                characteristic function.
+
+            Returns
+            -------
+            intITM : float
+                Value of the integrand for the probability of finishing in the
+                money evaluated at u.
             """
-            return np.real(-1j*(np.exp(-1j*u*np.log(K))*phi(u)) / u)
+            return np.real(-1j*(np.exp(-1j*u*k) * phi(T, u)) / u)
         
-        def deltaIntegrand(u, K, phi):
-            return np.real(-1j*(np.exp(-1j*u*np.log(K))*phi(u - 1j)) / (u * phi(-1j)))
-        
-        #Estimate the required integrals
-        K = self.K
-        phi = lambda u: self.S.phi(self.T, u)  #Characteristic function of log-asset at maturity
-        intITM = quad(PrITMIntegrand, 0, np.inf, args = (K, phi))[0]
-        intDelta = quad(deltaIntegrand, 0, np.inf, args = (K, phi))[0]
-        print(intITM)
-        print(intDelta)
+        def deltaIntegrand(u):  
+            """The integrand in the delta calculation.
+
+            Parameters
+            ----------
+            u : float
+                Value that integrand is to be evaluated at.
+
+            Returns
+            -------
+            intDelta : float
+                Value of the integrand for the delta evaluated at u.
+            """
+            numerator = -1j * (np.exp(-1j*u*k) * phi(T, u - 1j))
+            return np.real(numerator / (u*phi(T, -1j)))
+
+        # Compute the integrals
+        intITM = quad(PrITMIntegrand, 0, np.inf)[0]
+        intDelta = quad(deltaIntegrand, 0, np.inf)[0]
         PrITM = 0.5 + intITM/np.pi
         delta = 0.5 + intDelta/np.pi
-        return self.S.S0 * delta - self.K * np.exp(-self.S.r * self.T) * PrITM
+        return S0*delta - K*np.exp(-r*T)*PrITM
 
     #Fourier Transform of modified call e^(alpha * k) * C_T(k)
     def MCallFT(self, v, alpha):
@@ -405,25 +419,28 @@ def FFTPrice(S, T, L = 0, U = np.inf, alpha = 1.5, eta = 0.25, N = 4096):
 
 ########################################################################
 # 3. COMPARING OPTION PRICES
-
+"""
 # Test cdf price
-S0 = 100
-r = 0.05
+S0, r, sigma = 100, 0.05, 0.1
+S = GeometricBrownianMotion(S0, r, sigma)
+
 sigma, nu, theta = 0.25, 2, -0.1
+
 V = VarianceGamma(S0, r, sigma, theta, nu)
 T = 5
-call = EuCall(0, T, V)
-
+#call = EuCall(0, T, V)
 #Set Call maturity.
 
-K = np.arange(80, 120, 10)
+K = np.arange(80, 110, 5)
+
+call = EuCall(0, T, S)
 
 for strike in K:
     call.K = strike
     print("BS\tcdfFT")
-    print("{:.4f} {:.4f}".format(call.CMFTPrice(), call.cdfFTPrice()))
-
+    print("{:.4f} {:.4f} {:.4f}".format(call.black_scholes_price(), call.cdfFTPrice(), call.monte_carlo_price()))
 """
+
 #Initialise a GBM Process
 S0, r, sigma = 100, 0.05, 0.1
 S = GeometricBrownianMotion(S0, r, sigma)
@@ -520,6 +537,7 @@ print(VGheaderRow)
 print(VGtimeValues)
 print()
 print()
+"""
 #Small loop to compare prices. Testing purposes only.
 sigma, nu, theta = 0.25, 2, -0.1
 V = VarianceGamma(S0, r, sigma, theta, nu)
