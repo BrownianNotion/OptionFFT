@@ -413,8 +413,7 @@ class EuCall:
         denom = (alpha**2+alpha-v**2) + (2*alpha+1)*v*1j
         return np.exp(-r*T)*self.S.phi(T, v - (alpha+1)*1j) / denom
 
-    #Carr and Madan's analytic expression without using DFT to estimate integral
-    #Useful for testing the accuracy of the FFT approximation
+
     def CMFTPrice(self, alpha = 1.5):
         """Computes the price of the call option using Carr and Madan's
         modified call method. Uses scipy to perform quadrature on the integral
