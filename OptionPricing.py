@@ -392,7 +392,7 @@ class EuCall:
 
     #Fourier Transform of modified call e^(alpha * k) * C_T(k)
     def MCallFT(self, v, alpha):
-        denom = alpha**2 + alpha - v**2 + (2*alpha + 1) * v *1j
+        denom = (alpha**2+alpha-v**2) + (2*alpha+1)*v*1j
         return np.exp(-self.S.r * self.T) * self.S.phi(self.T, v - (alpha + 1)*1j) / denom
 
     #Carr and Madan's analytic expression without using DFT to estimate integral
@@ -407,7 +407,7 @@ class EuCall:
 
 #Fourier Transform of modified call e^(alpha * k) * C_T(k) (version outside call class for FFT)
 def MCallFTo(S, T, v, alpha):
-    denom = alpha**2 + alpha - v**2 + (2*alpha + 1) * v *1j
+    denom = (alpha**2+alpha-v**2) + (2*alpha+1)*v*1j
     return np.exp(-S.r * T) * S.phi(T, v - (alpha + 1)*1j) / denom
 
 #Return a list of b (left-endpoint), lamba (log-strike spacing) and log-strike prices array k
