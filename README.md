@@ -1,7 +1,7 @@
 # OptionFFT
 Implementing Fourier Transform Pricing methods for the European Call in Python,   
 with a focus on the Fast Fourier transform method proposed in Carr and Madan 1999.  
-Comparison of two underlying stock processes: the traditional Geometric Brownian Motion 
+Comparison of two underlying stock processes: the traditional Geometric Brownian Motion   
 and the Variance-Gamma process.   
 See `OptionPricing.pdf` for detailed mathematical explanations.
 
