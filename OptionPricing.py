@@ -219,11 +219,13 @@ class VarianceGamma:
             plt.show()
         return S_Sim[-1]
 
-#Vanilla European call option class
-#May want to add dividends/arbitrary time later
+
 class EuCall:
     """Creates an instance of a European Call option given an underlying
     stock process.
+
+    All prices are calculated at time 0 and assume the underlying stock
+    does not pay dividends.
 
     Parameters / Attributes
     -----------------------
@@ -259,7 +261,7 @@ class EuCall:
         """
         return max(ST - self.K, 0)
 
-    #Monte Carlo method - simulate n sample paths, compute the payoff, average these and discount.
+
     def monte_carlo_price(self, n=1):
         """Computes the price of the call option using Monte Carlo simulation.
 
@@ -307,16 +309,36 @@ class EuCall:
         delta = norm.cdf(d1)
         return S0*delta - K*np.exp(-r*T)*PrITM
 
-    #bop. a
-    #Fourier Transform method to compute option prices based on inversion method by Gil-Palez.
-    #Expression based on rewriting the cdf using Fourier Transforms and characteristic functions
+   
     def cdfFTPrice(self):
+        """Compute the price of the call option using the Fourier methods on
+        page 2 of Carr and Madan 1999.
+
+        Returns
+        -------
+        C0 : float
+            Call price computed using the Fourier methods to calculate the
+            delta and the probability of finishing in the money (PrITM).
+            The option price is then given by
+                C0 = S0*Delta - Ke^{-rT}*PrITM.
+        """
         #Integrands for the analytic Fourier Transform method to compute option prices
         def PrITMIntegrand(u, K, phi):
-            return np.real(-1j * (np.exp(-1j*u*np.log(K)) * phi(u)) / u)
+            """The integrand in the probability of finishing in the money.
+
+            Parameters
+            ----------
+            u : float
+                Value that integrand is to be evaluated at.
+            K : float
+                Strike price of the call option.
+            phi :  
+                characteristic function.
+            """
+            return np.real(-1j*(np.exp(-1j*u*np.log(K))*phi(u)) / u)
         
         def deltaIntegrand(u, K, phi):
-            return np.real(-1j * (np.exp(-1j*u*np.log(K)) * phi(u - 1j)) / (u * phi(-1j)))
+            return np.real(-1j*(np.exp(-1j*u*np.log(K))*phi(u - 1j)) / (u * phi(-1j)))
         
         #Estimate the required integrals
         K = self.K
