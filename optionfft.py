@@ -14,9 +14,6 @@ Carr, P, Madan, D.B, 1999, 'Option Valuation using the Fast Fourier Transform', 
 Computational Finance, 2, 61-63.
 http://faculty.baruch.cuny.edu/lwu/890/CarrMadan99.pdf
 """
-import sys
-import time
-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -74,7 +71,7 @@ class GeometricBrownianMotion:
         return np.exp(1j*u*mu  - 0.5*u**2*var)
     
 
-    def sample_path(self, T, N = 200, plot = False):
+    def sample_path(self, T, N=200, plot=False):
         """Generate a sample path of Geometric Brownian motion and return
         the terminal stock price.
 
@@ -180,7 +177,7 @@ class VarianceGamma:
         return np.exp(1j*u*(np.log(S0) + (r + omega)*t)) / denom
     
 
-    def sample_path(self, T, N = 200, terminal = True, plot = False):
+    def sample_path(self, T, N=200, terminal=True, plot=False):
         """Generate a sample path of stock based on the Variance-Gamma process
         and return the terminal stock price.
 

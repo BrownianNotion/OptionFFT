@@ -1,9 +1,11 @@
 #!/usr/bin/env python
-
+import time
+import numpy as np
+import optionfft as opt
 
 #Initialise a GBM Process
 S0, r, sigma = 100, 0.05, 0.1
-S = GeometricBrownianMotion(S0, r, sigma)
+S = opt.GeometricBrownianMotion(S0, r, sigma)
 
 #Set Call maturity.
 T = 1
@@ -17,7 +19,7 @@ eta = 2**(-2)  #default = 2**(-2) = 0.25
 N = 2**12   #default = 2**12 = 4096
 
 #Get strikes between L and U
-k = logStrikePartition(eta, N)[2]
+k = opt.logStrikePartition(eta, N)[2]
 K = np.exp(k)
 K = np.array([strike for strike in K if strike > L and strike < U])
 
@@ -28,26 +30,24 @@ GBMTimes = {method: 0 for method in GBMmethods}  #Dictionary to store average ti
 GBMTimes["FFTPrice"] = 0
 
 #Instance of call, strike will be constantly modified instead of creating new class
-call = EuCall(0, T, S) 
+call = opt.EuCall(0, T, S) 
 runs = 10     #Number of runs to average the time over
 
-
-#To be improved: use a more reliable method that tracks CPU time instead of time.time()
 #Time non-FFT methods
 for method in GBMmethods:
-    start = time.time()
+    start = time.process_time()
     for i in range(runs):
         for strike in K:
             call.K = strike
-            getattr(EuCall, method)(call)
-    end = time.time()
+            getattr(opt.EuCall, method)(call)
+    end = time.process_time()
     GBMTimes[method] = (end - start)/runs
 
 #Time FFT method (needs to be separate as it is not a method of EuCall)
-start = time.time()
+start = time.process_time()
 for i in range(runs):
-    FFTp = FFTPrice(S, T, L, U, alpha, eta, N)
-end = time.time()
+    FFTp = opt.FFTPrice(S, T, L, U, alpha, eta, N)
+end = time.process_time()
 GBMTimes["FFTPrice"] = (end - start)/runs
 
 print("CPU times averaged over {} runs for options priced on a GBM underlying".format(runs))
@@ -67,26 +67,26 @@ VGTimes["FFTPrice"] = 0
 #Change the call's process to a Variance-Gamma process as well as the maturity to 0.25.
 #This is parameter combination 4 in Carr and Madan's paper
 sigma, nu, theta = 0.25, 2, -0.1
-V = VarianceGamma(S0, r, sigma, theta, nu)
+V = opt.VarianceGamma(S0, r, sigma, theta, nu)
 call.S = V
-call.T = 5  #For small maturities (eg. 1), the cdfFT method results in large errors.
+call.T = 1
 
-#To be improved: use a more reliable method that tracks CPU time instead of time.time()
+#To be improved: use a more reliable method that tracks CPU time instead of time.process_time()
 #Time non-FFT methods
 for method in VGmethods:
-    start = time.time()
+    start = time.process_time()
     for i in range(runs):
         for strike in K:
             call.K = strike
-            getattr(EuCall, method)(call)
-    end = time.time()
+            getattr(opt.EuCall, method)(call)
+    end = time.process_time()
     VGTimes[method] = (end - start)/runs
 
 #Time FFT method (needs to be separate as it is not a method of EuCall)
-start = time.time()
+start = time.process_time()
 for i in range(runs):
-    FFTp = FFTPrice(V, T, L, U, alpha, eta, N)
-end = time.time()
+    FFTp = opt.FFTPrice(V, T, L, U, alpha, eta, N)
+end = time.process_time()
 VGTimes["FFTPrice"] = (end - start)/runs
 
 print("CPU times averaged over {} runs for options priced on a VG underlying".format(runs))
@@ -95,5 +95,3 @@ VGheaderRow = ''.join([method.ljust(headerSize) for method in VGNames])  #Header
 VGtimeValues = "{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(*VGTimes.values())
 print(VGheaderRow)
 print(VGtimeValues)
-print()
-print()
