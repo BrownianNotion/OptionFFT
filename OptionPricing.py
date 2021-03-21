@@ -577,18 +577,33 @@ T = 1
 call = EuCall(0, T, V)
 #Set Call maturity.
 
-K = np.arange(80, 110, 5)
+L = 70
+U = 130
+#FFT Price Parameters
+alpha = 1.5
+eta = 2**(-2)  #default = 2**(-2) = 0.25
+N = 2**12   #default = 2**12 = 4096
+
+#Get strikes between L and U
+k = logStrikePartition(eta, N)[2]
+K = np.exp(k)
+K = np.array([strike for strike in K if strike > L and strike < U])
 
 #call = EuCall(0, T, S)
-lower = 0
-upper = 1e10
-weight = "cauchy"
+call = EuCall(0, T, V)
+FFTp = FFTPrice(V, T, L, U)
+print("MC\tCDFT\tCMFT, FFT")
+for (i, strike) in enumerate(K):
+    call.K = strike
+    #print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.black_scholes_price(), call.cdfFTPrice(), call.monte_carlo_price(), FFTp[i]))
+    print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.monte_carlo_price(), call.cdfFTPrice(), call.CMFTPrice(), FFTp[i]))
 
+"""
 for strike in K:
     call.K = strike
     print("BS\tcdfFT")
     print("{:.4f} {:.4f} {:.4f}".format(call.CMFTPrice(), call.cdfFTPrice(lower), call.monte_carlo_price()))
-
+"""
 """
 #Initialise a GBM Process
 S0, r, sigma = 100, 0.05, 0.1
@@ -686,15 +701,4 @@ print(VGheaderRow)
 print(VGtimeValues)
 print()
 print()
-"""
-"""
-#Small loop to compare prices. Testing purposes only.
-sigma, nu, theta = 0.25, 2, -0.1
-V = VarianceGamma(S0, r, sigma, theta, nu)
-call = EuCall(0, T, V)
-FFTp = FFTPrice(V, 5, L, U)
-for (i, strike) in enumerate(K):
-    call.K = strike
-    #print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.black_scholes_price(), call.cdfFTPrice(), call.monte_carlo_price(), FFTp[i]))
-    print("{:.4f} {:.4f} {:.4f} {:.4f}".format(call.monte_carlo_price(), call.cdfFTPrice(), call.CMFTPrice(), FFTp[i]))
 """
