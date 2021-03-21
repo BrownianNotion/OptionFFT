@@ -434,13 +434,58 @@ class EuCall:
         return np.exp(-alpha*k)*CMIntegral / np.pi
 
 
-#Fourier Transform of modified call e^(alpha * k) * C_T(k) (version outside call class for FFT)
 def MCallFTo(S, T, v, alpha):
+    """Compute the Fourier transform of the modified call option.
+    Same functionality as EuCall.MCallFT, except it is defined outside
+    to allow FFT functions to access it.
+
+    Parameters
+    ----------
+    S : VarianceGamma or GeometricBrownianMotion
+        The Stock price process of the call option.
+
+    T : float
+        Time to maturity of the call option.
+
+    v : float
+        Value at which to compute the Fourier Transform.
+    
+    alpha : float
+        The modification parameter used in defining the modified call.
+    
+    Returns
+    -------
+    Psi : float
+        The Fourier transform, Psi_{T}(v), of the modified call price
+            c_{T}(k) = e^{alpha*k}*C_{T}(k),
+        evaluated at v.
+    """
     denom = (alpha**2+alpha-v**2) + (2*alpha+1)*v*1j
-    return np.exp(-S.r * T) * S.phi(T, v - (alpha + 1)*1j) / denom
+    return np.exp(-S.r*T)*S.phi(T, v - (alpha+1)*1j) / denom
 
 #Return a list of b (left-endpoint), lamba (log-strike spacing) and log-strike prices array k
 def logStrikePartition(eta = 0.25, N = 4096):
+    """Creates a partition of strike prices in the log-space for use in the
+    FFT pricing functions.
+
+    Parameters
+    ----------
+    eta : float, optional
+        The spacing size used in the quadrature of the modified call's Fourier
+        transform. Default value is 0.25 from Carr and Madan 1999.
+    
+    N : int, optional
+        The number of points used in the quadrature of the modified call's
+        Fourier transform. Defaul value is 2**12 = 4096 from Carr and Madan
+        1999. Note, N should be a power of 2 for ideal performance in the fft.
+
+    Returns
+    -------
+    log_strikes : list
+        List containing [b, lamb, k], where k is a numpy array with N strike
+        prices in the log space uniformly spaced in the interval [-b, b). 
+        The spacing size between log-strikes in k is lamb.
+    """
     b = np.pi/eta
     lamb = 2*np.pi/(eta*N)
     k = -b + lamb*np.arange(0, N)
