@@ -310,9 +310,31 @@ class EuCall:
         return S0*delta - K*np.exp(-r*T)*PrITM
 
    
-    def cdfFTPrice(self):
+    def cdfFTPrice(self, lower=0, upper=np.inf, weight=None, wvar=None):
         """Compute the price of the call option using the Fourier methods on
         page 2 of Carr and Madan 1999.
+
+        Parameters
+        ----------
+        lower : float, optional
+            The lower integration limit in calculating the probability
+            of finishing in the money and delta integrals. Default value is 0.
+            Specifying a small positive eps may help performance.
+
+        upper : float, optional
+            The upper integration limit in calculating the probability of
+            finishing in the money and delta integrals. Default value is
+            np.inf. If weight='cauchy' (see below), finite upper bound must be
+            specified.
+
+        weight : str, optional
+            Specify the weight function for scipy to use in calculating the
+            integral. Due to singularity at 0, weight='cauchy' may help
+            performance.
+
+        wvar : float or tuple, optional
+            Variables associated with the weight used. Since the singularity
+            is at 0, wvar is automatically set to 0 when using Cauchy weights.
 
         Returns
         -------
@@ -359,8 +381,11 @@ class EuCall:
             return np.real(numerator / (u*phi(T, -1j)))
 
         # Compute the integrals
-        intITM = quad(PrITMIntegrand, 0, np.inf)[0]
-        intDelta = quad(deltaIntegrand, 0, np.inf)[0]
+        if weight == "cauchy":
+            wvar = 0
+
+        intITM = quad(PrITMIntegrand, a=lower, b=upper, weight=weight, wvar=wvar)[0]
+        intDelta = quad(deltaIntegrand, a=lower, b=upper, weight=weight, wvar=wvar)[0]
         PrITM = 0.5 + intITM/np.pi
         delta = 0.5 + intDelta/np.pi
         return S0*delta - K*np.exp(-r*T)*PrITM
@@ -419,7 +444,7 @@ def FFTPrice(S, T, L = 0, U = np.inf, alpha = 1.5, eta = 0.25, N = 4096):
 
 ########################################################################
 # 3. COMPARING OPTION PRICES
-"""
+
 # Test cdf price
 S0, r, sigma = 100, 0.05, 0.1
 S = GeometricBrownianMotion(S0, r, sigma)
@@ -427,20 +452,23 @@ S = GeometricBrownianMotion(S0, r, sigma)
 sigma, nu, theta = 0.25, 2, -0.1
 
 V = VarianceGamma(S0, r, sigma, theta, nu)
-T = 5
-#call = EuCall(0, T, V)
+T = 1
+call = EuCall(0, T, V)
 #Set Call maturity.
 
 K = np.arange(80, 110, 5)
 
-call = EuCall(0, T, S)
+#call = EuCall(0, T, S)
+lower = 0
+upper = 1e10
+weight = "cauchy"
 
 for strike in K:
     call.K = strike
     print("BS\tcdfFT")
-    print("{:.4f} {:.4f} {:.4f}".format(call.black_scholes_price(), call.cdfFTPrice(), call.monte_carlo_price()))
-"""
+    print("{:.4f} {:.4f} {:.4f}".format(call.CMFTPrice(), call.cdfFTPrice(lower), call.monte_carlo_price()))
 
+"""
 #Initialise a GBM Process
 S0, r, sigma = 100, 0.05, 0.1
 S = GeometricBrownianMotion(S0, r, sigma)
@@ -537,6 +565,7 @@ print(VGheaderRow)
 print(VGtimeValues)
 print()
 print()
+"""
 """
 #Small loop to compare prices. Testing purposes only.
 sigma, nu, theta = 0.25, 2, -0.1
