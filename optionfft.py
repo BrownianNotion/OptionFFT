@@ -17,9 +17,10 @@ http://faculty.baruch.cuny.edu/lwu/890/CarrMadan99.pdf
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.integrate import quad
-from scipy.stats import norm
 from scipy.fft import fft
+from scipy.integrate import quad
+from scipy.stats import gamma
+from scipy.stats import norm
 
 
 class GeometricBrownianMotion:
@@ -295,7 +296,7 @@ class EuCall:
             Geometric Brownian motion.
         """
         if not isinstance(self.S, GeometricBrownianMotion):
-            raise("Black Scholes Pricing requires underlying stock to be a GBM.")
+            raise("black_scholes_price requires underlying stock to be a GBM.")
 
         K, T, S = self.K, self.T, self.S
         S0, r, sigma = S.S0, S.r, S.sigma
@@ -430,6 +431,59 @@ class EuCall:
             return np.real(np.exp(-1j*v*k) * self.MCallFT(v, alpha))
         CMIntegral = quad(CMintegrand, 0, np.inf, args = (alpha, k))[0]
         return np.exp(-alpha*k)*CMIntegral / np.pi
+    
+
+    def VG_analytic_price(self):
+        """Computes the price of the call option using the 'analytic' formula
+        given in Carr, Chang and Madan 1998 (Theorem 2, pg 98)
+        https://engineering.nyu.edu/sites/default/files/2018-09/CarrEuropeanFinReview1998.pdf
+
+        Returns
+        -------
+        C0 : float
+            The price of the call option using the user-defined function Psi,
+            where Psi relies on numerical intergation. 
+            
+            NOTE: Although an expression for the call price without integrals
+            is given in Carr, Chang and Madan 1998, it relies on the confluent
+            hypergeometric function of two variables. This function has a 
+            singularity at u=1 and is too difficult to implement in practice
+            (Matusda 2004).
+        """
+        if not isinstance(self.S, VarianceGamma):
+            raise("VG_analytic_price requires underlying stock to be a VG.")
+        
+        K, T, S = self.K, self.T, self.S
+        theta, sigma, nu = S.theta, S.sigma, S.nu
+        r, S0 = S.r, S.S0
+
+        # Compute intermediate variables required for final substitution.
+        # Intermediate variable formulae can be found on pg 194 of Matsuda
+        # 2004: http://www.maxmatsuda.com/Papers/2004/Matsuda%20Intro%20FT%20Pricing.pdf
+        zeta = -theta/sigma**2
+        s = sigma/np.sqrt(1 + 0.5*theta**2*nu/sigma**2)
+        alpha = zeta*s
+        c1 = 0.5*nu*(alpha+s)**2
+        c2 = 0.5*nu*alpha**2
+        log_c = 1 + nu*(theta - 0.5*sigma**2)
+        d = 1/s * (np.log(S0/K) + r*T + (T/nu)*np.log(log_c))
+
+        def Psi(a, b, c):
+            def Psi_integrand(u, a, b, c):
+                return norm.cdf(a/np.sqrt(u) + b*np.sqrt(u))*gamma.pdf(u, a=c)
+            return quad(Psi_integrand, a=0, b=np.inf, args=(a,b,c))[0]
+        
+        a1 = d*np.sqrt((1-c1)/nu)
+        b1 = (alpha+s)*np.sqrt(nu/(1-c1))
+        c = T/nu
+
+        a2 = d*np.sqrt((1-c2)/nu)
+        b2 = alpha*s*np.sqrt(nu/(1-c2))
+        
+        delta = Psi(a1, b1, c)
+        PrITM = Psi(a2, b2, c)
+
+        return S0*delta - K*np.exp(-r*T)*PrITM
 
 
 def MCallFTo(S, T, v, alpha):
@@ -556,3 +610,21 @@ def FFTPrice(S, T, L = 0, U = np.inf, alpha = 1.5, eta = 0.25, N = 4096):
     #Return only the prices with strikes between L and U
     kIndices = np.logical_and(np.exp(k)>L, np.exp(k)<U)
     return callPrices[kIndices]
+
+
+if __name__ == "__main__":
+    # Test the analytic price against other methods.
+    K = 140
+    S0, r, sigma, T = 100, 0.05, 0.1, 1
+    sigma, nu, theta = 0.25, 2, -0.1
+    S = GeometricBrownianMotion(S0, r, sigma)
+    V = VarianceGamma(S0, r, sigma, theta, nu)
+    call = EuCall(K, T, V)
+
+    print("MC\tcdfFT\tCMFT\tAnalytic")
+    print("{:.4f}\t{:.4f}\t{:.4f}\t{:.4f}".format(
+        call.monte_carlo_price(),
+        call.cdfFTPrice(),
+        call.CMFTPrice(),
+        call.VG_analytic_price()
+    ))

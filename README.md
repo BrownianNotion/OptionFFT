@@ -14,3 +14,9 @@ strike prices.
 ## References
 Carr, P, Madan, D.B, 1999, "Option Valuation using the Fast Fourier Transform", Journal of
 Computational Finance, 2, 61-63.
+
+Madan, D.B., Carr, P., and Chang, E.C., 1998, "The variance gamma process and option pricing.",
+European Finance Review, 2, 79-105.
+
+Matsuda, K, 2004, "Introduction to Option Pricing with Fourier Transform: Option Pricing with
+Exponential Levy Models", PhD Thesis, The City University of New York.
