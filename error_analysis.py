@@ -128,6 +128,6 @@ table_tex = table_tex.replace("Absolute", r"\textbf{Absolute}")
 table_tex = table_tex.replace(r"\begin{table}", r"\begin{table}[h]")
 
 # Write to table.tex
-f = open("error_table.tex", "w+")
+f = open("Analysis/error_table.tex", "w+")
 f.write(table_tex)
 f.close()
