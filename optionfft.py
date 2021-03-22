@@ -443,6 +443,10 @@ class EuCall:
         C0 : float
             The price of the call option using the user-defined function Psi,
             where Psi relies on numerical intergation. 
+
+            The intermediate variables zeta, alpha, c1, c2, log_c and d
+            are computed using the same formulae as pg194 of Matsuda 2004
+            http://www.maxmatsuda.com/Papers/2004/Matsuda%20Intro%20FT%20Pricing.pdf
             
             NOTE: Although an expression for the call price without integrals
             is given in Carr, Chang and Madan 1998, it relies on the confluent
@@ -457,9 +461,7 @@ class EuCall:
         theta, sigma, nu = S.theta, S.sigma, S.nu
         r, S0 = S.r, S.S0
 
-        # Compute intermediate variables required for final substitution.
-        # Intermediate variable formulae can be found on pg 194 of Matsuda
-        # 2004: http://www.maxmatsuda.com/Papers/2004/Matsuda%20Intro%20FT%20Pricing.pdf
+        # Compute intermediate variables for Psi
         zeta = -theta/sigma**2
         s = sigma/np.sqrt(1 + 0.5*theta**2*nu/sigma**2)
         alpha = zeta*s
@@ -468,6 +470,7 @@ class EuCall:
         log_c = 1 + nu*(theta - 0.5*sigma**2)
         d = 1/s * (np.log(S0/K) + r*T + (T/nu)*np.log(log_c))
 
+        # The user-defined function in Carr, Chang and Madan 1998.
         def Psi(a, b, c):
             def Psi_integrand(u, a, b, c):
                 return norm.cdf(a/np.sqrt(u) + b*np.sqrt(u))*gamma.pdf(u, a=c)
