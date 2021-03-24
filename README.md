@@ -19,4 +19,4 @@ Madan, D.B., Carr, P., and Chang, E.C., 1998, "The variance gamma process and op
 European Finance Review, 2, 79-105.
 
 Matsuda, K, 2004, "Introduction to Option Pricing with Fourier Transform: Option Pricing with
-Exponential Levy Models", PhD Thesis, The City University of New York.
+Exponential Levy Models", PhD Thesis, The City University of New York.
