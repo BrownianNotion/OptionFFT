@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Basic error analysis for the option pricing methods in optionfft.
 
 Calculates average relative error over a range of prices and converts
@@ -26,7 +26,11 @@ call_VG = opt.EuCall(0, T, V)
 alpha = 1.5
 eta = 0.25
 N = 4096
-L, U = 60, 140      # Not interested in calls too far in or out of the money
+
+# Not interested in calls too far in or out of the money
+lower_factor = 0.5
+upper_factor = 2
+L, U = lower_factor*S0, upper_factor*S0       
 
 # Get strikes between L and U
 k = opt.logStrikePartition(eta, N)[2]
@@ -42,9 +46,11 @@ GBM_methods = ["black_scholes_price",
                 "monte_carlo_price", 
                 "cdfFTPrice", 
                 "CMFTPrice"]
-VG_methods = ["monte_carlo_price", 
+VG_methods = ["VG_analytic_price",
+              "monte_carlo_price", 
               "cdfFTPrice", 
               "CMFTPrice"]
+
 n_GBM = len(GBM_methods) + 1    
 n_VG = len(VG_methods) + 1
 n_prices = K.shape[0]
@@ -73,6 +79,7 @@ GBM_names = [
 ]
 
 VG_names = [
+    "Analytic",
     "Monte Carlo",
     "Fourier Inversion",
     "Modified Call",
@@ -85,26 +92,40 @@ all_prices_names = ["Strike"] + \
                    ["GBM " + name for name in GBM_names] + \
                    ["VG " + name for name in VG_names]
 all_prices_df = pd.DataFrame(data=all_prices, columns=all_prices_names)
-all_prices_df.to_csv("all_prices.csv")
+all_prices_df.to_csv("Analysis/all_prices.csv")
 
 GBM_df = pd.DataFrame(data=GBM_prices, columns=GBM_names)
 VG_df = pd.DataFrame(data=VG_prices, columns=VG_names)
 
 # Compute average absolute and relative errors in the FFT price for each 
-# underlying type. 
-# We use the Black-Scholes price as the theoretical for Geometric Brownian 
-# motion and Fourier an average of the Fourier Inversion and Modified call 
-# as the theorical for Variance Gamma process.
+# underlying type.
 abs_GBM = abs(GBM_df["Black-Scholes"] - GBM_df["Fast-Fourier Transform"])
 rel_GBM = abs_GBM/GBM_df["Black-Scholes"]
-ave_VG = (VG_df["Fourier Inversion"] + VG_df["Modified Call"])/2
-abs_VG  = abs(ave_VG - VG_df["Fast-Fourier Transform"])
-rel_VG = abs_VG/ave_VG
+
+# Theoretical price under Variance Gamma is made difficult by inaccuracy
+# of VG_analytic_price due to singularity at u=0, especially for ATM/OTM
+# calls (Matsuda 2004)
+# Hence, if Monte carlo and VG prices differ by more than threshold, use
+# an average of Fourier inversion and modified call
+diff_threshold = 0.03
+percent_diff_mc_analytic = np.abs((VG_df["Monte Carlo"]-VG_df["Analytic"])/\
+                                  VG_df["Monte Carlo"])
+avg_non_analytic_prices = (VG_df["Fourier Inversion"] + VG_df["Modified Call"])/2
+VG_theoretical = np.where(
+                    percent_diff_mc_analytic > diff_threshold,
+                    avg_non_analytic_prices,
+                    VG_df["Analytic"]
+                    )
+VG_df["Theoretical"] = VG_theoretical
+abs_VG  = abs(VG_theoretical - VG_df["Fast-Fourier Transform"])
+rel_VG = abs_VG/VG_theoretical
 
 # Convert to LaTeX table
-abs_errs = [abs_GBM.mean(), abs_VG.mean()]
-rel_errs = [rel_GBM.mean(), rel_VG.mean()]
-err_data = [abs_errs, rel_errs]
+err_data = np.array([
+    [abs_GBM.mean(), rel_GBM.mean()],
+    [abs_VG.mean(), rel_VG.mean()]
+])
+
 err_df = pd.DataFrame(err_data, 
                       index=["GBM", "VG"], 
                       columns=["Absolute", "Relative"])
@@ -114,9 +135,10 @@ err_df["Absolute"] = err_df["Absolute"].apply("{:.4e}".format)
 err_df["Relative"] = err_df["Relative"].apply("{:.2%}".format)
 
 # Create tex
-caption = "Table comparing the absolute and relative errors of the FFT pricing\
-            method when the underlying stock process is a Geometric Brownian\
-            motion or Variance-Gamma process."
+caption = "The absolute and relative errors of the FFT pricing method\
+           computed over {:d} strike prices between {:.2f} and {:.2f}."\
+            .format(n_prices, K[0], K[-1])
+
 table_tex = err_df.to_latex(caption=caption, label="tab:err_table")
 
 # Replace rules with hline for consistency and bold headings
